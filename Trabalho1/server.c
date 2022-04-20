@@ -123,8 +123,23 @@ int main(void)
 
 		if (!fork()) { // this is the child process
 			close(sockfd); // child doesn't need the listener
-			if (send(new_fd, "Hello, world!", 13, 0) == -1)
+
+			// Testing custom send recv
+			int numbytes;
+			char buf[1000];
+
+
+			if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
+				perror("recv");
+				exit(1);
+			}
+
+			buf[numbytes] = '*';
+
+			if (send(new_fd, buf, strlen(buf), 0) == -1) {
 				perror("send");
+			}
+
 			close(new_fd);
 			exit(0);
 		}
