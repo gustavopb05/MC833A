@@ -134,7 +134,14 @@ int main(void)
 				exit(1);
 			}
 
-			buf[numbytes] = '*';
+			buf[numbytes] = '\0';
+
+			if (strcmp(buf,"teste")==0) {
+				buf[numbytes] = '*';
+			}
+			else {
+				buf[numbytes] = '+';
+			}
 
 			if (send(new_fd, buf, strlen(buf), 0) == -1) {
 				perror("send");
