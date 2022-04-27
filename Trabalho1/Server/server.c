@@ -42,6 +42,43 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+struct Database{
+	char titles[100][70];
+	char ids[100][6];
+	char gen[100][70];
+	char dir[100][70];
+	char year[100][6];
+}
+
+//Lista com booleanos 
+char * cadastrar(struct Database db){
+
+}
+
+char * addgen(struct Database db){
+
+}
+
+char * listtitles(struct Database db){
+
+}
+
+char * listgen(struct Database db){
+
+}
+
+char * listall(struct Database db){
+
+}
+
+char * lisid(struct Database db){
+
+}
+
+char * removeid(struct Database db){
+
+}
+
 int main(void)
 {
 	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
@@ -52,6 +89,9 @@ int main(void)
 	int yes=1;
 	char s[INET6_ADDRSTRLEN];
 	int rv;
+
+	//"Database"
+
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
