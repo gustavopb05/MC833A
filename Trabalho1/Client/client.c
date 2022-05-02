@@ -28,8 +28,7 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int main(int argc, char *argv[])
-{
+int teste(int argc, char *argv[], char *send_message) {
 	int sockfd, numbytes;  
 	char buf[MAXDATASIZE];
 	struct addrinfo hints, *servinfo, *p;
@@ -41,68 +40,81 @@ int main(int argc, char *argv[])
 	    exit(1);
 	}
 
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return 1;
+	}
+
+	// loop through all the results and connect to the first we can
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			perror("client: socket");
+			continue;
+		}
+
+		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			perror("client: connect");
+			close(sockfd);
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "client: failed to connect\n");
+		return 2;
+	}
+
+	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+			s, sizeof s);
+	printf("client: connecting to %s\n", s);
+
+	freeaddrinfo(servinfo); // all done with this structure
+
+	// Testing custom send recv
+	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
+		perror("send");
+
+	fflush(stdin);
+	
+	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+	}
+
+	buf[numbytes] = '\0';
+
+	printf("%s\n",buf);
+
+	close(sockfd);
+	
+	return 0;
+}
+
+
+int main(int argc, char *argv[])
+{
+
+	char message[MAXDATASIZE];
+	int ret;
 
 	while (1)
 	{
+		scanf("%s",message);
 
-		memset(&hints, 0, sizeof hints);
-		hints.ai_family = AF_UNSPEC;
-		hints.ai_socktype = SOCK_STREAM;
-
-		if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
-			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-			return 1;
-		}
-
-		// loop through all the results and connect to the first we can
-		for(p = servinfo; p != NULL; p = p->ai_next) {
-			if ((sockfd = socket(p->ai_family, p->ai_socktype,
-					p->ai_protocol)) == -1) {
-				perror("client: socket");
-				continue;
-			}
-
-			if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-				perror("client: connect");
-				close(sockfd);
-				continue;
-			}
-
+		if(strcmp(message,"exit") == 0) {
 			break;
 		}
-
-		if (p == NULL) {
-			fprintf(stderr, "client: failed to connect\n");
-			return 2;
+		else {
+			ret = teste(argc, argv, message);
 		}
-
-		inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-				s, sizeof s);
-		printf("client: connecting to %s\n", s);
-
-		freeaddrinfo(servinfo); // all done with this structure
-
-		// Testing custom send recv
-
-
-		scanf("%s",buf);
-
-		if (send(sockfd, buf, strlen(buf), 0) == -1)
-			perror("send");
-
-		fflush(stdin);
-		
-		if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-			perror("recv");
-			exit(1);
-		}
-
-		buf[numbytes] = '\0';
-
-		printf("client: received '%s'\n",buf);
 	}
-
-	close(sockfd);
-
-	return 0;
+	return ret;
 }
+

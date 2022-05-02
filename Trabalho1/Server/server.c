@@ -42,40 +42,67 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-struct Database{
-	char titles[100][70];
-	char ids[100][6];
-	char gen[100][70];
-	char dir[100][70];
-	char year[100][6];
-}
+struct Movie{
+	char title[70];
+	char id[3];
+	char gen[2][70];
+	char dir[70];
+	char year[70];
+};
+
+
+// Database
+struct Movie db[100];
+int registered_ids[100];
 
 //Lista com booleanos 
-char * cadastrar(struct Database db){
+char * cadastrar(){
+
+	int id;
+	char *charId;
+
+	for (int i = 0; i < 100; i++)
+	{
+		if (registered_ids[i] == 0) {
+			id = i;
+			registered_ids[i] = 1;
+			break;
+		}
+	}
+
+	sprintf(charId, "%d", id); 
+	
+	strcpy(db[id].dir, "Wachowski");
+	strcpy(db[id].title, "Matrix");
+	strcpy(db[id].year, "1999");
+	strcpy(db[id].gen[0], "Sci-fi");
+	strcpy(db[id].gen[1], "Ação");
+	strcpy(db[id].id, charId);
+
+	return charId;
+}
+
+char * addgen(struct Movie db[100]){
 
 }
 
-char * addgen(struct Database db){
+char * listtitles(struct Movie db[100]){
 
 }
 
-char * listtitles(struct Database db){
+char * listgen(struct Movie db[100]){
 
 }
 
-char * listgen(struct Database db){
+char * listall(struct Movie db[100]){
 
 }
 
-char * listall(struct Database db){
+char * listid(struct Movie db[100]){
 
 }
 
-char * lisid(struct Database db){
-
-}
-
-char * removeid(struct Database db){
+char * removeid(struct Movie db[100]){
 
 }
 
@@ -90,7 +117,22 @@ int main(void)
 	char s[INET6_ADDRSTRLEN];
 	int rv;
 
-	//"Database"
+
+	//Init database
+	for (int i = 0; i < 100; i++)
+	{
+		registered_ids[i] = 0;
+	}
+
+	strcpy(db[0].dir, "Peter Jackson");
+	strcpy(db[0].title, "Lord of the Rings: The Fellowship of the ring");
+	strcpy(db[0].year, "2001");
+	strcpy(db[0].gen[0], "Aventura");
+	strcpy(db[0].gen[1], "Ação");
+	strcpy(db[0].id, "0");
+
+	registered_ids[0] = 1;
+
 
 
 	memset(&hints, 0, sizeof hints);
@@ -168,23 +210,51 @@ int main(void)
 			int numbytes;
 			char buf[1000];
 
-
 			if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
 				perror("recv");
 				exit(1);
 			}
 
 			buf[numbytes] = '\0';
+			printf("%s\n",buf);
 
 			if (strcmp(buf,"teste")==0) {
-				buf[numbytes] = '*';
+				char result[] = "Título: ";
+				strcat(result,db[0].title);
+				strcat(result, "\nGênero: ");
+				strcat(result,db[0].gen[0]);
+				strcat(result, ", ");
+				strcat(result,db[0].gen[1]);
+				strcat(result,"\nDiretor(a): ");
+				strcat(result,db[0].dir);
+				strcat(result,"\nAno de Lançamento: ");
+				strcat(result, db[0].year);
+				strcat(result,"\nid: ");
+				strcat(result, db[0].id);
+				strcat(result,"\n");
+
+				if (send(new_fd, result, strlen(result), 0) == -1) {
+					perror("send");
+				}
+
+			}
+			else if (strcmp(buf,"cadastrar")==0) {
+
+				char *charId = cadastrar();
+
+				char result[] = "Cadastrado, id do filme é: ";
+				strcat(result,charId);
+
+				if (send(new_fd, result, strlen(result), 0) == -1) {
+					perror("send");
+				}
 			}
 			else {
 				buf[numbytes] = '+';
-			}
 
-			if (send(new_fd, buf, strlen(buf), 0) == -1) {
-				perror("send");
+				if (send(new_fd, buf, strlen(buf), 0) == -1) {
+					perror("send");
+				}
 			}
 
 			close(new_fd);
