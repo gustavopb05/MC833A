@@ -51,12 +51,11 @@ struct Movie{
 };
 
 
-// Database
+// Mudei databse pra ser uma lista do Struct movie
 struct Movie db[100];
 int registered_ids[100];
 
-//Lista com booleanos 
-char * cadastrar(){
+char * cadastrar(struct Movie mv){
 
 	int id;
 	char *charId;
@@ -72,12 +71,11 @@ char * cadastrar(){
 
 	sprintf(charId, "%d", id); 
 	
-	strcpy(db[id].dir, "Wachowski");
-	strcpy(db[id].title, "Matrix");
-	strcpy(db[id].year, "1999");
-	strcpy(db[id].gen[0], "Sci-fi");
-	strcpy(db[id].gen[1], "Ação");
-	strcpy(db[id].id, charId);
+	strcpy(db[1].dir, mv.dir);
+	strcpy(db[1].title, mv.title);
+	strcpy(db[1].year, mv.year);
+	strcpy(db[1].gen[0], mv.gen[0]);
+	strcpy(db[1].id, charId);
 
 	return charId;
 }
@@ -98,7 +96,23 @@ char * listall(struct Movie db[100]){
 
 }
 
-char * listid(struct Movie db[100]){
+char * listid(int id){
+
+	char *result = "Título: ";
+	strcat(result,db[id].title);
+	strcat(result, "\nGênero: ");
+	strcat(result,db[id].gen[0]);
+	strcat(result, ", ");
+	strcat(result,db[id].gen[1]);
+	strcat(result,"\nDiretor(a): ");
+	strcat(result,db[id].dir);
+	strcat(result,"\nAno de Lançamento: ");
+	strcat(result, db[id].year);
+	strcat(result,"\nid: ");
+	strcat(result, db[id].id);
+	strcat(result,"\n");
+
+	return result;
 
 }
 
@@ -118,7 +132,7 @@ int main(void)
 	int rv;
 
 
-	//Init database
+	//Coloca senhor dos aneis no banco
 	for (int i = 0; i < 100; i++)
 	{
 		registered_ids[i] = 0;
@@ -218,7 +232,7 @@ int main(void)
 			buf[numbytes] = '\0';
 			printf("%s\n",buf);
 
-			if (strcmp(buf,"teste")==0) {
+			if (strcmp(buf,"teste")==0) {  // As funções estou fazendo aqui mesmo, to com dificuldade de passar strings de função pra cá
 				char result[] = "Título: ";
 				strcat(result,db[0].title);
 				strcat(result, "\nGênero: ");
@@ -238,9 +252,93 @@ int main(void)
 				}
 
 			}
-			else if (strcmp(buf,"cadastrar")==0) {
 
-				char *charId = cadastrar();
+			else if (strcmp(buf,"id")==0) { // Aqui eu queria ver se guardou alguma coisa no db[1] mas printa vazio.
+				char result[] = "Título: ";
+				strcat(result,db[1].title);
+				strcat(result, "\nGênero: ");
+				strcat(result,db[1].gen[0]);
+				strcat(result, ", ");
+				strcat(result,db[1].gen[1]);
+				strcat(result,"\nDiretor(a): ");
+				strcat(result,db[1].dir);
+				strcat(result,"\nAno de Lançamento: ");
+				strcat(result, db[1].year);
+				strcat(result,"\nid: ");
+				strcat(result, db[1].id);
+				strcat(result,"\n");
+
+				if (send(new_fd, result, strlen(result), 0) == -1) {
+					perror("send");
+				}
+
+			}
+
+			else if (strcmp(buf,"cadastrar")==0) { // Não sei pq, não coloca o filme no banco
+
+				struct Movie mv;
+
+				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
+					perror("recv");
+					exit(1);
+				}
+				buf[numbytes] = '\0';
+				printf("%s\n",buf);
+
+				strcpy(mv.title, buf);
+
+				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
+					perror("recv");
+					exit(1);
+				}
+				buf[numbytes] = '\0';
+				printf("%s\n",buf);
+
+				strcpy(mv.dir, buf);
+
+				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
+					perror("recv");
+					exit(1);
+				}
+				buf[numbytes] = '\0';
+				printf("%s\n",buf);
+
+				strcpy(mv.gen[0], buf);
+
+				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
+					perror("recv");
+					exit(1);
+				}
+				buf[numbytes] = '\0';
+				printf("%s\n",buf); //Até aqui tudo certo
+
+				strcpy(mv.year, buf);
+
+				printf("%s\n",mv.dir); // Está salvando as informações em mv
+
+				int id;
+				char *charId;
+
+				for (int i = 0; i < 100; i++)
+				{
+					if (registered_ids[i] == 0) {
+						id = i;
+						registered_ids[i] = 1;
+						break;
+					}
+				}
+
+				sprintf(charId, "%d", id); 
+				
+				strcpy(db[1].dir, mv.dir);
+				strcpy(db[1].title, mv.title);
+				strcpy(db[1].year, mv.year);
+				strcpy(db[1].gen[0], mv.gen[0]);
+				strcpy(db[1].id, "1");
+
+				printf("Aqui\n"); // Não parece chegar aqui, não está passando as informações.
+
+				printf("%s\n",charId);
 
 				char result[] = "Cadastrado, id do filme é: ";
 				strcat(result,charId);
@@ -249,6 +347,7 @@ int main(void)
 					perror("send");
 				}
 			}
+
 			else {
 				buf[numbytes] = '+';
 
