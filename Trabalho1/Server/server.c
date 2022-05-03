@@ -19,6 +19,8 @@
 
 #define BACKLOG 10	 // how many pending connections queue will hold
 
+#define MAXDATASIZE 1000 // max number of bytes we can get at once 
+
 void sigchld_handler(int s)
 {
 	(void)s; // quiet unused variable warning
@@ -42,13 +44,271 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-struct Movie{
-	char title[70];
-	char id[3];
-	char gen[2][70];
-	char dir[70];
-	char year[70];
-};
+void listAll(int new_fd) {
+
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	char result[1000] = "";
+
+	fp = fopen("Movies/movies.txt", "r");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+
+		if (strcmp(line,"\n") != 0)
+			strcat(result, line);
+	}
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	if (send(new_fd, result, strlen(result), 0) == -1) {
+		perror("send");
+	}
+}
+
+void registerMovie(int new_fd) {
+
+	int numbytes;
+	char buf[MAXDATASIZE];
+
+	if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+	}
+	buf[numbytes] = '\n';
+	buf[numbytes+1] = '\0';
+
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+
+	fp = fopen("Movies/index.txt", "a");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	fprintf(fp,"%s", buf); //Titulo no index
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) { //Filme todo
+		perror("recv");
+		exit(1);
+	}
+	
+	fp = fopen("Movies/movies.txt", "a");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	fprintf(fp,"%s", buf); //Registra o filme
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	
+	fp = fopen("Movies/index.txt", "r");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	int idCadastro = 0;
+	while ((read = getline(&line, &len, fp)) != -1) { // Pega o número do cadastro
+		idCadastro++;
+	}
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	char idChar[3];
+	sprintf(idChar, "%d", idCadastro); //Passa int pra string
+
+	char result[100] = "\nCadastrado, id é: ";
+	strcat(result,idChar);
+
+	if (send(new_fd, result, strlen(result), 0) == -1) {
+		perror("send");
+	}
+
+}
+
+void listId(int new_fd) {
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	char result[1000] = "";
+
+	int id = 0;
+	char idChar[3];
+
+	fp = fopen("Movies/index.txt", "r");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+		id++;
+
+		if (strcmp(line,"\n") != 0)
+		{
+			sprintf(idChar, "%d", id);
+			strcat(result, idChar);
+			strcat(result, " ");
+			strcat(result, line);
+		}
+
+	}
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	if (send(new_fd, result, strlen(result), 0) == -1) {
+		perror("send");
+	}
+}
+
+void movieId(int new_fd) {
+
+	int numbytes;
+	char buf[MAXDATASIZE];
+
+	if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+	}
+	buf[numbytes] = '\0';
+
+	int idMovie = atoi(buf);
+
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	char result[1000] = "";
+
+	int id = 0;
+	char idChar[3];
+
+	fp = fopen("Movies/movies.txt", "r");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+		id++;
+
+		if (id >= (4*idMovie - 3) && id <= (4*idMovie)) {
+			if (strcmp(line,"\n") != 0)
+				strcat(result, line);
+		}
+	}
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	if (send(new_fd, result, strlen(result), 0) == -1) {
+		perror("send");
+	}
+}
+
+void removeId(int new_fd) {
+
+	int numbytes;
+	char buf[MAXDATASIZE];
+
+	if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+	}
+	buf[numbytes] = '\0';
+
+	int idMovie = atoi(buf);
+
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	char result[1000] = "";
+
+	int id = 0;
+
+	fp = fopen("Movies/movies.txt", "r");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+		id++;
+
+		if (!(id >= (4*idMovie - 3) && id <= (4*idMovie))) {
+			strcat(result, line);
+		}
+		else
+		{
+			strcat(result, "\n");
+		}
+	}
+
+	id = 0;
+
+	fclose(fp);
+
+
+	fp = fopen("Movies/movies.txt", "w");
+	if (fp == NULL)
+		printf("Erro\n");
+	
+	fprintf(fp,"%s", result);
+
+	fclose(fp);
+
+
+	char result2[1000] = "";
+
+	fp = fopen("Movies/index.txt", "r");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+		id++;
+
+		if (id != idMovie ) {
+			strcat(result2, line);
+		}
+		else
+		{
+			strcat(result2, "\n");
+		}
+	}
+
+	fclose(fp);
+
+
+	fp = fopen("Movies/index.txt", "w");
+	if (fp == NULL)
+		printf("Erro\n");
+	
+	fprintf(fp,"%s", result2);
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	char removed[100] = "Removido o filme ";
+	strcat(removed,buf);
+
+	if (send(new_fd, removed, strlen(removed), 0) == -1) {
+		perror("send");
+	}
+
+}
 
 int main(void)
 {
@@ -144,134 +404,26 @@ int main(void)
 			buf[numbytes] = '\0';
 			printf("%s\n",buf);
 
-			if (strcmp(buf,"teste")==0) { // As funções estou fazendo aqui mesmo, teste só pra le arquivo
-
-				FILE *fp;
-				char *line = NULL;
-				size_t len = 0;
-				ssize_t read;
-				char result[1000] = "";
-
-				fp = fopen("Movies/movies.txt", "r");
-				if (fp == NULL)
-					printf("Erro\n");
-
-				while ((read = getline(&line, &len, fp)) != -1) {
-					strcat(result, line);
-				}
-
-				// printf("%s", result);
-
-				fclose(fp);
-				if (line)
-					free(line);
-
-				if (send(new_fd, result, strlen(result), 0) == -1) {
-					perror("send");
-				}
-
+			if (strcmp(buf,"listAll")==0) { // Lista todos os filmes
+				listAll(new_fd);
 			}
-
-			else if (strcmp(buf,"id")==0) { // pegar por id
-
-				char *result;
-				if (send(new_fd, result, strlen(result), 0) == -1) {
-					perror("send");
-				}
-
-			}
-
 			else if (strcmp(buf,"cadastrar")==0) { // Ta escrevendo o filme nos arquivos
-
-				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
-					perror("recv");
-					exit(1);
-				}
-				buf[numbytes] = '\n';
-				buf[numbytes+1] = '\0';
-
-				FILE *fp;
-				char *line = NULL;
-				size_t len = 0;
-				ssize_t read;
-
-				fp = fopen("Movies/index.txt", "a");
-				if (fp == NULL)
-					printf("Erro\n");
-
-				fprintf(fp,"%s", buf); //Titulo no index
-
-				fclose(fp);
-				if (line)
-					free(line);
-				
-				fp = fopen("Movies/movies.txt", "a");
-				if (fp == NULL)
-					printf("Erro\n");
-
-				fprintf(fp,"%s", buf); //Titulo no movies
-
-				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) { //Genero
-					perror("recv");
-					exit(1);
-				}
-				buf[numbytes] = '\n';
-				buf[numbytes+1] = '\0';
-
-				fprintf(fp,"%s", buf);
-
-				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) { //Dietor
-					perror("recv");
-					exit(1);
-				}
-				buf[numbytes] = '\n';
-				buf[numbytes+1] = '\0';
-
-				fprintf(fp,"%s", buf);
-
-				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) { //Ano
-					perror("recv");
-					exit(1);
-				}
-				buf[numbytes] = '\n';
-				buf[numbytes+1] = '\0';
-
-				fprintf(fp,"%s", buf);
-
-				fclose(fp);
-				if (line)
-					free(line);
-
-				
-				fp = fopen("Movies/index.txt", "r");
-				if (fp == NULL)
-					printf("Erro\n");
-
-				int idCadastro = 0;
-				while ((read = getline(&line, &len, fp)) != -1) {
-					idCadastro++;
-				}
-
-				fclose(fp);
-				if (line)
-					free(line);
-
-				char idChar[3];
-				sprintf(idChar, "%d", idCadastro);
-
-				printf("%d", idCadastro);
-				char result[100] = "Cadastrado, id é :";
-				strcat(result,idChar);
-
-				if (send(new_fd, result, strlen(result), 0) == -1) {
-					perror("send");
-				}
+				registerMovie(new_fd);
 			}
-
+			else if (strcmp(buf,"listId")==0) {
+				listId(new_fd);
+			}
+			else if (strcmp(buf, "movieId") == 0) {
+				movieId(new_fd);
+			}
+			else if (strcmp(buf, "removeId") == 0)
+			{
+				removeId(new_fd);
+			}
 			else {
-				buf[numbytes] = '+';
+				char error[100] = "Não existe essa função";
 
-				if (send(new_fd, buf, strlen(buf), 0) == -1) {
+				if (send(new_fd, error, strlen(error), 0) == -1) {
 					perror("send");
 				}
 			}
