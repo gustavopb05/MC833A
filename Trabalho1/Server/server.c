@@ -50,76 +50,6 @@ struct Movie{
 	char year[70];
 };
 
-
-// Mudei databse pra ser uma lista do Struct movie
-struct Movie db[100];
-int registered_ids[100];
-
-char * cadastrar(struct Movie mv){
-
-	int id;
-	char *charId;
-
-	for (int i = 0; i < 100; i++)
-	{
-		if (registered_ids[i] == 0) {
-			id = i;
-			registered_ids[i] = 1;
-			break;
-		}
-	}
-
-	sprintf(charId, "%d", id); 
-	
-	strcpy(db[1].dir, mv.dir);
-	strcpy(db[1].title, mv.title);
-	strcpy(db[1].year, mv.year);
-	strcpy(db[1].gen[0], mv.gen[0]);
-	strcpy(db[1].id, charId);
-
-	return charId;
-}
-
-char * addgen(struct Movie db[100]){
-
-}
-
-char * listtitles(struct Movie db[100]){
-
-}
-
-char * listgen(struct Movie db[100]){
-
-}
-
-char * listall(struct Movie db[100]){
-
-}
-
-char * listid(int id){
-
-	char *result = "Título: ";
-	strcat(result,db[id].title);
-	strcat(result, "\nGênero: ");
-	strcat(result,db[id].gen[0]);
-	strcat(result, ", ");
-	strcat(result,db[id].gen[1]);
-	strcat(result,"\nDiretor(a): ");
-	strcat(result,db[id].dir);
-	strcat(result,"\nAno de Lançamento: ");
-	strcat(result, db[id].year);
-	strcat(result,"\nid: ");
-	strcat(result, db[id].id);
-	strcat(result,"\n");
-
-	return result;
-
-}
-
-char * removeid(struct Movie db[100]){
-
-}
-
 int main(void)
 {
 	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
@@ -130,24 +60,6 @@ int main(void)
 	int yes=1;
 	char s[INET6_ADDRSTRLEN];
 	int rv;
-
-
-	//Coloca senhor dos aneis no banco
-	for (int i = 0; i < 100; i++)
-	{
-		registered_ids[i] = 0;
-	}
-
-	strcpy(db[0].dir, "Peter Jackson");
-	strcpy(db[0].title, "Lord of the Rings: The Fellowship of the ring");
-	strcpy(db[0].year, "2001");
-	strcpy(db[0].gen[0], "Aventura");
-	strcpy(db[0].gen[1], "Ação");
-	strcpy(db[0].id, "0");
-
-	registered_ids[0] = 1;
-
-
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -232,20 +144,27 @@ int main(void)
 			buf[numbytes] = '\0';
 			printf("%s\n",buf);
 
-			if (strcmp(buf,"teste")==0) {  // As funções estou fazendo aqui mesmo, to com dificuldade de passar strings de função pra cá
-				char result[] = "Título: ";
-				strcat(result,db[0].title);
-				strcat(result, "\nGênero: ");
-				strcat(result,db[0].gen[0]);
-				strcat(result, ", ");
-				strcat(result,db[0].gen[1]);
-				strcat(result,"\nDiretor(a): ");
-				strcat(result,db[0].dir);
-				strcat(result,"\nAno de Lançamento: ");
-				strcat(result, db[0].year);
-				strcat(result,"\nid: ");
-				strcat(result, db[0].id);
-				strcat(result,"\n");
+			if (strcmp(buf,"teste")==0) { // As funções estou fazendo aqui mesmo, teste só pra le arquivo
+
+				FILE *fp;
+				char *line = NULL;
+				size_t len = 0;
+				ssize_t read;
+				char result[1000] = "";
+
+				fp = fopen("Movies/movies.txt", "r");
+				if (fp == NULL)
+					printf("Erro\n");
+
+				while ((read = getline(&line, &len, fp)) != -1) {
+					strcat(result, line);
+				}
+
+				// printf("%s", result);
+
+				fclose(fp);
+				if (line)
+					free(line);
 
 				if (send(new_fd, result, strlen(result), 0) == -1) {
 					perror("send");
@@ -253,95 +172,96 @@ int main(void)
 
 			}
 
-			else if (strcmp(buf,"id")==0) { // Aqui eu queria ver se guardou alguma coisa no db[1] mas printa vazio.
-				char result[] = "Título: ";
-				strcat(result,db[1].title);
-				strcat(result, "\nGênero: ");
-				strcat(result,db[1].gen[0]);
-				strcat(result, ", ");
-				strcat(result,db[1].gen[1]);
-				strcat(result,"\nDiretor(a): ");
-				strcat(result,db[1].dir);
-				strcat(result,"\nAno de Lançamento: ");
-				strcat(result, db[1].year);
-				strcat(result,"\nid: ");
-				strcat(result, db[1].id);
-				strcat(result,"\n");
+			else if (strcmp(buf,"id")==0) { // pegar por id
 
+				char *result;
 				if (send(new_fd, result, strlen(result), 0) == -1) {
 					perror("send");
 				}
 
 			}
 
-			else if (strcmp(buf,"cadastrar")==0) { // Não sei pq, não coloca o filme no banco
-
-				struct Movie mv;
+			else if (strcmp(buf,"cadastrar")==0) { // Ta escrevendo o filme nos arquivos
 
 				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
 					perror("recv");
 					exit(1);
 				}
-				buf[numbytes] = '\0';
-				printf("%s\n",buf);
+				buf[numbytes] = '\n';
+				buf[numbytes+1] = '\0';
 
-				strcpy(mv.title, buf);
+				FILE *fp;
+				char *line = NULL;
+				size_t len = 0;
+				ssize_t read;
 
-				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
-					perror("recv");
-					exit(1);
-				}
-				buf[numbytes] = '\0';
-				printf("%s\n",buf);
+				fp = fopen("Movies/index.txt", "a");
+				if (fp == NULL)
+					printf("Erro\n");
 
-				strcpy(mv.dir, buf);
+				fprintf(fp,"%s", buf); //Titulo no index
 
-				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
-					perror("recv");
-					exit(1);
-				}
-				buf[numbytes] = '\0';
-				printf("%s\n",buf);
-
-				strcpy(mv.gen[0], buf);
-
-				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
-					perror("recv");
-					exit(1);
-				}
-				buf[numbytes] = '\0';
-				printf("%s\n",buf); //Até aqui tudo certo
-
-				strcpy(mv.year, buf);
-
-				printf("%s\n",mv.dir); // Está salvando as informações em mv
-
-				int id;
-				char *charId;
-
-				for (int i = 0; i < 100; i++)
-				{
-					if (registered_ids[i] == 0) {
-						id = i;
-						registered_ids[i] = 1;
-						break;
-					}
-				}
-
-				sprintf(charId, "%d", id); 
+				fclose(fp);
+				if (line)
+					free(line);
 				
-				strcpy(db[1].dir, mv.dir);
-				strcpy(db[1].title, mv.title);
-				strcpy(db[1].year, mv.year);
-				strcpy(db[1].gen[0], mv.gen[0]);
-				strcpy(db[1].id, "1");
+				fp = fopen("Movies/movies.txt", "a");
+				if (fp == NULL)
+					printf("Erro\n");
 
-				printf("Aqui\n"); // Não parece chegar aqui, não está passando as informações.
+				fprintf(fp,"%s", buf); //Titulo no movies
 
-				printf("%s\n",charId);
+				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) { //Genero
+					perror("recv");
+					exit(1);
+				}
+				buf[numbytes] = '\n';
+				buf[numbytes+1] = '\0';
 
-				char result[] = "Cadastrado, id do filme é: ";
-				strcat(result,charId);
+				fprintf(fp,"%s", buf);
+
+				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) { //Dietor
+					perror("recv");
+					exit(1);
+				}
+				buf[numbytes] = '\n';
+				buf[numbytes+1] = '\0';
+
+				fprintf(fp,"%s", buf);
+
+				if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) { //Ano
+					perror("recv");
+					exit(1);
+				}
+				buf[numbytes] = '\n';
+				buf[numbytes+1] = '\0';
+
+				fprintf(fp,"%s", buf);
+
+				fclose(fp);
+				if (line)
+					free(line);
+
+				
+				fp = fopen("Movies/index.txt", "r");
+				if (fp == NULL)
+					printf("Erro\n");
+
+				int idCadastro = 0;
+				while ((read = getline(&line, &len, fp)) != -1) {
+					idCadastro++;
+				}
+
+				fclose(fp);
+				if (line)
+					free(line);
+
+				char idChar[3];
+				sprintf(idChar, "%d", idCadastro);
+
+				printf("%d", idCadastro);
+				char result[100] = "Cadastrado, id é :";
+				strcat(result,idChar);
 
 				if (send(new_fd, result, strlen(result), 0) == -1) {
 					perror("send");

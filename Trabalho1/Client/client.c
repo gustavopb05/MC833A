@@ -80,8 +80,6 @@ int teste(int argc, char *argv[], char *send_message) {
 	// Testing custom send recv
 	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
 		perror("send");
-
-	fflush(stdin);
 	
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 		perror("recv");
@@ -156,13 +154,13 @@ int cadastrarFilme(int argc, char *argv[], char *send_message) {
 	scanf("%s",infos);
 	if (send(sockfd, infos, strlen(infos), 0) == -1)
 		perror("send");
-
-	printf("Digite o diretor:\n");
+	
+	printf("Digite o genero:\n");
 	scanf("%s",infos);
 	if (send(sockfd, infos, strlen(infos), 0) == -1)
 		perror("send");
-
-	printf("Digite o gênero:\n");
+	
+	printf("Digite o diretor:\n");
 	scanf("%s",infos);
 	if (send(sockfd, infos, strlen(infos), 0) == -1)
 		perror("send");
@@ -171,8 +169,6 @@ int cadastrarFilme(int argc, char *argv[], char *send_message) {
 	scanf("%s",infos);
 	if (send(sockfd, infos, strlen(infos), 0) == -1)
 		perror("send");
-
-	
 	
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 		perror("recv");
