@@ -149,6 +149,76 @@ void requestMovieId(int sockfd, char *send_message) {
 	printf("%s\n",buf);
 }
 
+void requestAcrescentaGen(int sockfd, char *send_message){
+	int numbytes, i = 0;
+	char buf[MAXDATASIZE];
+	char sChar[100] = "";
+
+	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
+		perror("send");
+
+	printf("Digite o Titulo:\n");
+
+	sChar[i] = getchar();    /* get the first character */
+	while( sChar[i] != '\n' ){
+		sChar[++i] = getchar(); /* gets the next character */
+	}
+	sChar[i] = '\0';
+	i = 0;
+
+	if (send(sockfd, sChar, strlen(sChar), 0) == -1)
+		perror("send");
+
+	printf("Digite o genero:\n");
+
+	sChar[i] = getchar();    /* get the first character */
+	while( sChar[i] != '\n' ){
+		sChar[++i] = getchar(); /* gets the next character */
+	}
+	sChar[i] = '\0';
+	i = 0;
+
+	if (send(sockfd, sChar, strlen(sChar), 0) == -1)
+		perror("send");
+
+	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+	}
+
+	buf[numbytes] = '\0';
+	printf("%s\n",buf);
+}
+
+void requestListarGenAll(int sockfd, char *send_message) {
+	int numbytes, i = 0;
+	char buf[MAXDATASIZE];
+	char gChar[3] = "";
+
+	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
+		perror("send");
+
+	printf("Digite o genero:\n");
+
+	gChar[i] = getchar();    /* get the first character */
+	while( gChar[i] != '\n' ){
+		gChar[++i] = getchar(); /* gets the next character */
+	}
+	gChar[i] = '\0';
+	i = 0;
+
+	if (send(sockfd, gChar, strlen(gChar), 0) == -1)
+		perror("send");
+
+	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+	}
+
+	buf[numbytes] = '\0';
+	printf("%s\n",buf);
+}
+
 //##########################################
 // Função que abre a conexao e escolhe qual outra função pra enviar a mensagem
 
@@ -212,6 +282,14 @@ int sendServer(int argc, char *argv[], char *send_message) {
 	{
 		requestMovieId(sockfd, send_message);	
 	}
+	else if(strcmp(send_message, "AcrescentaGen") == 0)
+	{
+		requestAcrescentaGen(sockfd, send_message);
+	}
+	else if(strcmp(send_message, "AcrescentaGen") == 0)
+	{
+		requestAcrescentaGen(sockfd, send_message);
+	}
 	else if (strcmp(send_message,"cadastrar") == 0)
 	{
 		requestRegister(sockfd, send_message);
@@ -256,4 +334,3 @@ int main(int argc, char *argv[])
 	}
 	return ret;
 }
-
