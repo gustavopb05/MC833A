@@ -59,9 +59,7 @@ void listAll(int new_fd) {
 		printf("Erro\n");
 
 	while ((read = getline(&line, &len, fp)) != -1) {
-
-		if (strcmp(line,"\n") != 0)
-			strcat(result, line);
+		strcat(result, line);
 	}
 
 	fclose(fp);
@@ -158,13 +156,10 @@ void listId(int new_fd) {
 	while ((read = getline(&line, &len, fp)) != -1) {
 		id++;
 
-		if (strcmp(line,"\n") != 0)
-		{
-			sprintf(idChar, "%d", id);
-			strcat(result, idChar);
-			strcat(result, " ");
-			strcat(result, line);
-		}
+		sprintf(idChar, "%d", id);
+		strcat(result, idChar);
+		strcat(result, " ");
+		strcat(result, line);
 
 	}
 
@@ -306,13 +301,15 @@ void removeId(int new_fd) {
 void acrescentaGen(int new_fd) {
 	
 	int numbytes;
+	char title[MAXDATASIZE];
 	char buf[MAXDATASIZE];
 
-	if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
+	if ((numbytes = recv(new_fd, title, 1000-1, 0)) == -1) {
 		perror("recv");
 		exit(1);
 	}
-	buf[numbytes] = '\0';
+	title[numbytes] = '\n';
+	title[numbytes + 1] = '\0';
 
 	FILE *fp;
 	char *line = NULL;
@@ -320,7 +317,7 @@ void acrescentaGen(int new_fd) {
 	ssize_t read;
 	char result[1000] = "";
 	int idMovie;
-
+	int found = 0;
 	int id = 0;
 
 	fp = fopen("Movies/index.txt", "r");
@@ -330,7 +327,8 @@ void acrescentaGen(int new_fd) {
 	while ((read = getline(&line, &len, fp)) != -1) {
 		id++;
 
-		if (strcmp(buf,line) == 0) {
+		if (strcmp(title,line) == 0) {
+			found = 1;
 			break;
 		}
 	}
@@ -343,44 +341,58 @@ void acrescentaGen(int new_fd) {
 	}
 	buf[numbytes] = '\0';
 
-	fp = fopen("Movies/movies.txt", "r");
-	if (fp == NULL)
-		printf("Erro\n");
+	if (found == 1) {
+		fp = fopen("Movies/movies.txt", "r");
+		if (fp == NULL)
+			printf("Erro\n");
 
-	idMovie = id;
-	id = 0 ;
-	while ((read = getline(&line, &len, fp)) != -1) {
-		id++;
+		idMovie = id;
+		id = 0 ;
+		while ((read = getline(&line, &len, fp)) != -1) {
+			id++;
 
-		if ( id == (4*idMovie - 2) ) {
-			strcat(line, ", ");
-			strcat(line, buf);
-			strcat(result, line);
+			if ( id == (4*idMovie - 2) ) {
+				line[strlen(line)-1] = '\0';
+
+				strcat(line, ", ");
+				strcat(line, buf);
+				strcat(line, "\n");
+				strcat(result, line);
+			}
+			else
+			{
+				strcat(result, line);
+			}
 		}
-		else
-		{
-			strcat(result, line);
+
+		fclose(fp);
+
+		fp = fopen("Movies/movies.txt", "w");
+		if (fp == NULL)
+			printf("Erro\n");
+		
+		fprintf(fp,"%s", result);
+
+		fclose(fp);
+		if (line)
+			free(line);
+
+		char removed[100] = "Genero acrescentado no filme ";
+		strcat(removed,title);
+
+		if (send(new_fd, removed, strlen(removed), 0) == -1) {
+			perror("send");
 		}
 	}
+	else
+	{
+		char removed[100] = "Filme não encontrado";
 
-	fclose(fp);
-
-	fp = fopen("Movies/movies.txt", "w");
-	if (fp == NULL)
-		printf("Erro\n");
+		if (send(new_fd, removed, strlen(removed), 0) == -1) {
+			perror("send");
+		}
+	}
 	
-	fprintf(fp,"%s", result);
-
-	fclose(fp);
-	if (line)
-		free(line);
-
-	char removed[100] = "Genero acrescentado no filme";
-	strcat(removed,buf);
-
-	if (send(new_fd, removed, strlen(removed), 0) == -1) {
-		perror("send");
-	}
 
 }
 
@@ -403,6 +415,7 @@ void listarGenAll(int new_fd) {
 	int listaid[1000];
 	int idcont = 0;
 	int idincre = 0;
+	int readOneMovie = 0;
 
 	int id = 0;
 
@@ -431,7 +444,12 @@ void listarGenAll(int new_fd) {
 
 		if (idincre < idcont && id >= (4*listaid[idincre] - 3) && id <= (4*listaid[idincre])) {
 			strcat(result, line);
-			idincre++;
+			readOneMovie++;
+			if (readOneMovie == 4)
+			{
+				readOneMovie = 0;
+				idincre++;
+			}
 		}
 	}
 	fclose(fp);
@@ -553,13 +571,12 @@ int main(void)
 				removeId(new_fd);
 			}
 
-			else if (strcmp(buf, "AcrescentaGen") == 0) { // Acrescentar um novo gênero em um filme
+			else if (strcmp(buf, "acrescentaGen") == 0) { // Acrescentar um novo gênero em um filme
 				acrescentaGen(new_fd);
 			}
-			else if (strcmp(buf, "ListarGenAll") == 0) { // Listar informações (título, diretor(a) e ano) de todos os filmes de um determinado gênero
+			else if (strcmp(buf, "listarGenAll") == 0) { // Listar informações (título, diretor(a) e ano) de todos os filmes de um determinado gênero
 				listarGenAll(new_fd);
 			}
-
 			else {
 				char error[100] = "Não existe essa função";
 

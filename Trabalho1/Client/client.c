@@ -157,7 +157,7 @@ void requestAcrescentaGen(int sockfd, char *send_message){
 	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
 		perror("send");
 
-	printf("Digite o Titulo:\n");
+	printf("Digite o Título:\n");
 
 	sChar[i] = getchar();    /* get the first character */
 	while( sChar[i] != '\n' ){
@@ -169,7 +169,7 @@ void requestAcrescentaGen(int sockfd, char *send_message){
 	if (send(sockfd, sChar, strlen(sChar), 0) == -1)
 		perror("send");
 
-	printf("Digite o genero:\n");
+	printf("Digite o Gênero:\n");
 
 	sChar[i] = getchar();    /* get the first character */
 	while( sChar[i] != '\n' ){
@@ -206,6 +206,8 @@ void requestListarGenAll(int sockfd, char *send_message) {
 	}
 	gChar[i] = '\0';
 	i = 0;
+
+	printf("\n");
 
 	if (send(sockfd, gChar, strlen(gChar), 0) == -1)
 		perror("send");
@@ -282,13 +284,13 @@ int sendServer(int argc, char *argv[], char *send_message) {
 	{
 		requestMovieId(sockfd, send_message);	
 	}
-	else if(strcmp(send_message, "AcrescentaGen") == 0)
+	else if(strcmp(send_message, "acrescentaGen") == 0)
 	{
 		requestAcrescentaGen(sockfd, send_message);
 	}
-	else if(strcmp(send_message, "AcrescentaGen") == 0)
+	else if(strcmp(send_message, "listarGenAll") == 0)
 	{
-		requestAcrescentaGen(sockfd, send_message);
+		requestListarGenAll(sockfd, send_message);
 	}
 	else if (strcmp(send_message,"cadastrar") == 0)
 	{
@@ -314,7 +316,7 @@ int main(int argc, char *argv[])
 
 	while (1)
 	{
-		printf("\nAções disponíveis:\ncadastrar - Cadastra um novo filme\nlistAll - Lista todas informações de todos os filmes\nlistId - Lista tods os títulos e seu id\nmovieId - Infos de um filme dado seu id\nremoveId - Remove um filme pelo id\n\nDigite uma ação:\n\n");
+		printf("\nAções disponíveis:\ncadastrar - Cadastra um novo filme\nlistAll - Lista todas informações de todos os filmes\nlistId - Lista todos os títulos e seu id\nmovieId - Infos de um filme dado seu id\nremoveId - Remove um filme pelo id\nacrescentaGen - Acescenta um gênero a um filme\nlistarGenAll - Lista todas as informações dos filmes de um gênero\n\nDigite uma ação:\n\n");
 
 		message[i] = getchar();    /* get the first character */
 		while( message[i] != '\n' ){
