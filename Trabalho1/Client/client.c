@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
 
 	while (1)
 	{
-		printf("\ncadastrar - Cadastra um novo filme\nlistAll - Lista todas informações de todos os filmes\nlistId - Lista tods os títulos e seu id\nmovieId - Infos de um filme dado seu id\nremoveId - Remove um filme pelo id\n\nDigite uma ação:\n\n");
+		printf("\nAções disponíveis:\ncadastrar - Cadastra um novo filme\nlistAll - Lista todas informações de todos os filmes\nlistId - Lista tods os títulos e seu id\nmovieId - Infos de um filme dado seu id\nremoveId - Remove um filme pelo id\n\nDigite uma ação:\n\n");
 
 		message[i] = getchar();    /* get the first character */
 		while( message[i] != '\n' ){

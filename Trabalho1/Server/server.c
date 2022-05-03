@@ -44,6 +44,8 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+//#########################
+// Funções que se comunicam com o client
 void listAll(int new_fd) {
 
 	FILE *fp;
@@ -392,7 +394,8 @@ int main(void)
 		if (!fork()) { // this is the child process
 			close(sockfd); // child doesn't need the listener
 
-			// Testing custom send recv
+			// ##############################
+			// Escolhe que função realizar
 			int numbytes;
 			char buf[1000];
 
@@ -407,17 +410,16 @@ int main(void)
 			if (strcmp(buf,"listAll")==0) { // Lista todos os filmes
 				listAll(new_fd);
 			}
-			else if (strcmp(buf,"cadastrar")==0) { // Ta escrevendo o filme nos arquivos
+			else if (strcmp(buf,"cadastrar")==0) { // Registra um filme
 				registerMovie(new_fd);
 			}
-			else if (strcmp(buf,"listId")==0) {
+			else if (strcmp(buf,"listId")==0) { // Lista todos os títulos e Id
 				listId(new_fd);
 			}
-			else if (strcmp(buf, "movieId") == 0) {
+			else if (strcmp(buf, "movieId") == 0) { // Lista infomações de um filme por Id
 				movieId(new_fd);
 			}
-			else if (strcmp(buf, "removeId") == 0)
-			{
+			else if (strcmp(buf, "removeId") == 0) { // Remove um filme
 				removeId(new_fd);
 			}
 			else {
