@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #include <arpa/inet.h>
 
@@ -36,7 +37,9 @@ void requestInfo(int sockfd,char *send_message) {
 
 	int numbytes;
 	char buf[MAXDATASIZE];
+	struct timeval tv1, tv2;
 
+	gettimeofday(&tv1, NULL);
 	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
 		perror("send");
 	
@@ -44,9 +47,11 @@ void requestInfo(int sockfd,char *send_message) {
 		perror("recv");
 		exit(1);
 	}
+	gettimeofday(&tv2, NULL);
 	buf[numbytes] = '\0';
 
 	printf("%s\n",buf);
+	printf("TT = %06ld\n", tv2.tv_usec - tv1.tv_usec);
 }
 
 void requestRegister(int sockfd, char *send_message) {
@@ -117,7 +122,6 @@ void requestRegister(int sockfd, char *send_message) {
 	}
 
 	buf[numbytes] = '\0';
-	printf("%s\n",buf);
 }
 
 void requestMovieId(int sockfd, char *send_message) {

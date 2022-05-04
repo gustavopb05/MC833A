@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #define PORT "3490"  // the port users will be connecting to
 
@@ -46,13 +47,14 @@ void *get_in_addr(struct sockaddr *sa)
 
 //#########################
 // Funções que se comunicam com o client
-void listAll(int new_fd) {
+void listAll(int new_fd, struct timeval tv1) {
 
 	FILE *fp;
 	char *line = NULL;
 	size_t len = 0;
 	ssize_t read;
 	char result[1000] = "";
+	struct timeval tv2;
 
 	fp = fopen("Movies/movies.txt", "r");
 	if (fp == NULL)
@@ -66,9 +68,12 @@ void listAll(int new_fd) {
 	if (line)
 		free(line);
 
+	gettimeofday(&tv2, NULL);
+	printf("TS = %06ld\n", tv2.tv_usec - tv1.tv_usec);
 	if (send(new_fd, result, strlen(result), 0) == -1) {
 		perror("send");
 	}
+
 }
 
 void registerMovie(int new_fd) {
@@ -139,12 +144,13 @@ void registerMovie(int new_fd) {
 
 }
 
-void listId(int new_fd) {
+void listId(int new_fd, struct timeval tv1) {
 	FILE *fp;
 	char *line = NULL;
 	size_t len = 0;
 	ssize_t read;
 	char result[1000] = "";
+	struct timeval tv2;
 
 	int id = 0;
 	char idChar[3];
@@ -167,6 +173,8 @@ void listId(int new_fd) {
 	if (line)
 		free(line);
 
+	gettimeofday(&tv2, NULL);
+	printf("TS = %06ld\n", tv2.tv_usec - tv1.tv_usec);
 	if (send(new_fd, result, strlen(result), 0) == -1) {
 		perror("send");
 	}
@@ -546,23 +554,25 @@ int main(void)
 			// Escolhe que função realizar
 			int numbytes;
 			char buf[1000];
+			struct timeval tv1;
 
 			if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
 				perror("recv");
 				exit(1);
 			}
+			gettimeofday(&tv1, NULL);
 
 			buf[numbytes] = '\0';
 			printf("%s\n",buf);
 
 			if (strcmp(buf,"listAll")==0) { // Lista todos os filmes
-				listAll(new_fd);
+				listAll(new_fd, tv1);
 			}
 			else if (strcmp(buf,"cadastrar")==0) { // Registra um filme
 				registerMovie(new_fd);
 			}
 			else if (strcmp(buf,"listId")==0) { // Lista todos os títulos e Id
-				listId(new_fd);
+				listId(new_fd, tv1);
 			}
 			else if (strcmp(buf, "movieId") == 0) { // Lista infomações de um filme por Id
 				movieId(new_fd);
