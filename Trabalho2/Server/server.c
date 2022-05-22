@@ -22,6 +22,8 @@
 
 #define MAXDATASIZE 1000 // max number of bytes we can get at once 
 
+#define MAXBUFLEN 100
+
 void sigchld_handler(int s)
 {
 	(void)s; // quiet unused variable warning
@@ -47,12 +49,13 @@ void *get_in_addr(struct sockaddr *sa)
 
 //#########################
 // Funções que se comunicam com o client
-void listAll(int new_fd, struct timeval tv1) {
+void listAll(int sockfd, struct timeval tv1, struct addrinfo *p) {
 
 	FILE *fp;
 	char *line = NULL;
 	size_t len = 0;
 	ssize_t read;
+	int numbytes;
 	char result[1000] = "";
 	struct timeval tv2;
 
@@ -70,8 +73,13 @@ void listAll(int new_fd, struct timeval tv1) {
 
 	gettimeofday(&tv2, NULL);
 	printf("TS = %06ld\n", tv2.tv_usec - tv1.tv_usec);
-	if (send(new_fd, result, strlen(result), 0) == -1) {
-		perror("send");
+	// if (send(new_fd, result, strlen(result), 0) == -1) {
+	// 	perror("send");
+	// }
+		if ((numbytes = sendto(sockfd, result, strlen(result), 0,
+			 p->ai_addr, p->ai_addrlen)) == -1) {
+		perror("talker: sendto");
+		exit(1);
 	}
 
 }
@@ -470,18 +478,27 @@ void listarGenAll(int new_fd) {
 
 int main(void)
 {
-	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
+	// int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
+	// struct addrinfo hints, *servinfo, *p;
+	// struct sockaddr_storage their_addr; // connector's address information
+	// socklen_t sin_size;
+	// struct sigaction sa;
+	// int yes=1;
+	// char s[INET6_ADDRSTRLEN];
+	// int rv;
+
+	int sockfd;
 	struct addrinfo hints, *servinfo, *p;
-	struct sockaddr_storage their_addr; // connector's address information
-	socklen_t sin_size;
-	struct sigaction sa;
-	int yes=1;
-	char s[INET6_ADDRSTRLEN];
 	int rv;
+	int numbytes;
+	struct sockaddr_storage their_addr;
+	char buf[MAXBUFLEN];
+	socklen_t addr_len;
+	char s[INET6_ADDRSTRLEN];
 
 	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_family = AF_INET; // set to AF_INET to use IPv4
+	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
 	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
@@ -497,11 +514,11 @@ int main(void)
 			continue;
 		}
 
-		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-				sizeof(int)) == -1) {
-			perror("setsockopt");
-			exit(1);
-		}
+		// if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+		// 		sizeof(int)) == -1) {
+		// 	perror("setsockopt");
+		// 	exit(1);
+		// }
 
 		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
 			close(sockfd);
@@ -519,87 +536,105 @@ int main(void)
 		exit(1);
 	}
 
-	if (listen(sockfd, BACKLOG) == -1) {
-		perror("listen");
-		exit(1);
-	}
+	// if (listen(sockfd, BACKLOG) == -1) {
+	// 	perror("listen");
+	// 	exit(1);
+	// }
+	printf("listener: waiting to recvfrom...\n");
 
-	sa.sa_handler = sigchld_handler; // reap all dead processes
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-		perror("sigaction");
-		exit(1);
-	}
+	// sa.sa_handler = sigchld_handler; // reap all dead processes
+	// sigemptyset(&sa.sa_mask);
+	// sa.sa_flags = SA_RESTART;
+	// if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+	// 	perror("sigaction");
+	// 	exit(1);
+	// }
 
-	printf("server: waiting for connections...\n");
+	// printf("server: waiting for connections...\n");
 
 	while(1) {  // main accept() loop
-		sin_size = sizeof their_addr;
-		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-		if (new_fd == -1) {
-			perror("accept");
-			continue;
+		// sin_size = sizeof their_addr;
+		// new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+		// if (new_fd == -1) {
+		// 	perror("accept");
+		// 	continue;
+		// }
+
+		// inet_ntop(their_addr.ss_family,
+		// 	get_in_addr((struct sockaddr *)&their_addr),
+		// 	s, sizeof s);
+		// printf("server: got connection from %s\n", s);
+
+
+		// close(sockfd); // child doesn't need the listener
+
+		// ##############################
+		// Escolhe que função realizar
+		int numbytes;
+		char buf[1000];
+		struct timeval tv1;
+
+		addr_len = sizeof their_addr;
+		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
+			(struct sockaddr *)&their_addr, &addr_len)) == -1) {
+			perror("recvfrom");
+			exit(1);
 		}
 
-		inet_ntop(their_addr.ss_family,
-			get_in_addr((struct sockaddr *)&their_addr),
-			s, sizeof s);
-		printf("server: got connection from %s\n", s);
+		printf("listener: got packet from %s\n",
+			inet_ntop(their_addr.ss_family,
+				get_in_addr((struct sockaddr *)&their_addr),
+				s, sizeof s));
+		printf("listener: packet is %d bytes long\n", numbytes);
+		buf[numbytes] = '\0';
+		printf("listener: packet contains \"%s\"\n", buf);
 
-		if (!fork()) { // this is the child process
-			close(sockfd); // child doesn't need the listener
 
-			// ##############################
-			// Escolhe que função realizar
-			int numbytes;
-			char buf[1000];
-			struct timeval tv1;
 
-			if ((numbytes = recv(new_fd, buf, 1000-1, 0)) == -1) {
-				perror("recv");
-				exit(1);
-			}
-			gettimeofday(&tv1, NULL);
 
-			buf[numbytes] = '\0';
-			printf("%s\n",buf);
 
-			if (strcmp(buf,"listAll")==0) { // Lista todos os filmes
-				listAll(new_fd, tv1);
-			}
-			else if (strcmp(buf,"cadastrar")==0) { // Registra um filme
-				registerMovie(new_fd);
-			}
-			else if (strcmp(buf,"listId")==0) { // Lista todos os títulos e Id
-				listId(new_fd, tv1);
-			}
-			else if (strcmp(buf, "movieId") == 0) { // Lista infomações de um filme por Id
-				movieId(new_fd);
-			}
-			else if (strcmp(buf, "removeId") == 0) { // Remove um filme
-				removeId(new_fd);
-			}
+		// if ((numbytes = recv(sockfd, buf, 1000-1, 0)) == -1) {
+		// 	perror("recv");
+		// 	exit(1);
+		// }
+		gettimeofday(&tv1, NULL);
 
-			else if (strcmp(buf, "acrescentaGen") == 0) { // Acrescentar um novo gênero em um filme
-				acrescentaGen(new_fd);
-			}
-			else if (strcmp(buf, "listarGenAll") == 0) { // Listar informações (título, diretor(a) e ano) de todos os filmes de um determinado gênero
-				listarGenAll(new_fd);
-			}
-			else {
-				char error[100] = "Não existe essa função";
+		buf[numbytes] = '\0';
+		printf("%s\n",buf);
 
-				if (send(new_fd, error, strlen(error), 0) == -1) {
-					perror("send");
-				}
-			}
-
-			close(new_fd);
-			exit(0);
+		if (strcmp(buf,"listAll")==0) { // Lista todos os filmes
+			listAll(sockfd, tv1, p);
 		}
-		close(new_fd);  // parent doesn't need this
+		else if (strcmp(buf,"cadastrar")==0) { // Registra um filme
+			registerMovie(sockfd);
+		}
+		else if (strcmp(buf,"listId")==0) { // Lista todos os títulos e Id
+			listId(sockfd, tv1);
+		}
+		else if (strcmp(buf, "movieId") == 0) { // Lista infomações de um filme por Id
+			movieId(sockfd);
+		}
+		else if (strcmp(buf, "removeId") == 0) { // Remove um filme
+			removeId(sockfd);
+		}
+
+		else if (strcmp(buf, "acrescentaGen") == 0) { // Acrescentar um novo gênero em um filme
+			acrescentaGen(sockfd);
+		}
+		else if (strcmp(buf, "listarGenAll") == 0) { // Listar informações (título, diretor(a) e ano) de todos os filmes de um determinado gênero
+			listarGenAll(sockfd);
+		}
+		else {
+			char error[100] = "Não existe essa função";
+
+			if (send(sockfd, error, strlen(error), 0) == -1) {
+				perror("send");
+			}
+		}
+		
 	}
+	close(sockfd);
+	exit(0);
 
 	return 0;
 }

@@ -18,6 +18,7 @@
 #define PORT "3490" // the port client will be connecting to 
 
 #define MAXDATASIZE 1000 // max number of bytes we can get at once 
+#define MAXBUFLEN 100
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -38,6 +39,8 @@ void requestInfo(int sockfd,char *send_message, struct addrinfo *p) {
 	int numbytes;
 	char buf[MAXDATASIZE];
 	struct timeval tv1, tv2;
+	struct sockaddr_storage their_addr;
+	socklen_t addr_len;
 
 	gettimeofday(&tv1, NULL);
 	if ((numbytes = sendto(sockfd, send_message, strlen(send_message), 0,
@@ -46,8 +49,15 @@ void requestInfo(int sockfd,char *send_message, struct addrinfo *p) {
 		exit(1);
 	}
 
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-		perror("recv");
+	// if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+	// 	perror("recv");
+	// 	exit(1);
+	// }
+
+	addr_len = sizeof their_addr;
+	if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
+		(struct sockaddr *)&their_addr, &addr_len)) == -1) {
+		perror("recvfrom");
 		exit(1);
 	}
 	gettimeofday(&tv2, NULL);
@@ -246,7 +256,7 @@ int sendServer(int argc, char *argv[], char *send_message) {
 	hints.ai_family = AF_INET; // set to AF_INET to use IPv4
 	hints.ai_socktype = SOCK_DGRAM;
 
-	if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return 1;
 	}
