@@ -76,10 +76,10 @@ void listAll(int sockfd, struct timeval tv1, struct addrinfo *p) {
 	// if (send(new_fd, result, strlen(result), 0) == -1) {
 	// 	perror("send");
 	// }
-		if ((numbytes = sendto(sockfd, result, strlen(result), 0,
-			 p->ai_addr, p->ai_addrlen)) == -1) {
-		perror("talker: sendto");
-		exit(1);
+	if ((numbytes = sendto(sockfd, result, strlen(result), 0,
+			p->ai_addr, p->ai_addrlen)) == -1) {
+	perror("talker: sendto");
+	exit(1);
 	}
 
 }
@@ -476,7 +476,7 @@ void listarGenAll(int new_fd) {
 	
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	// int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
 	// struct addrinfo hints, *servinfo, *p;
@@ -501,7 +501,7 @@ int main(void)
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
-	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return 1;
 	}
