@@ -1,7 +1,3 @@
-/*
-** talker.c -- a datagram "client" demo
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,54 +10,126 @@
 #include <netdb.h>
 
 #define SERVERPORT "4950"	// the port users will be connecting to
+#define MYPORT "3490"
+
+#define MAXBUFLEN 100
+
+// get sockaddr, IPv4 or IPv6:
+void *get_in_addr(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET) {
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
+
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
 
 int main(int argc, char *argv[])
 {
-	int sockfd;
-	struct addrinfo hints, *servinfo, *p;
+	int sockfd, sockfd_rcv;
+	struct addrinfo hints, *servinfo, *clientinfo, *p;
 	int rv;
 	int numbytes;
+	struct sockaddr_storage their_addr;
+	char buf[MAXBUFLEN];
+	socklen_t addr_len;
+	char s[INET6_ADDRSTRLEN];
 
-	if (argc != 3) {
-		fprintf(stderr,"usage: talker hostname message\n");
+	if (argc != 2) {
+		fprintf(stderr,"usage: talker hostname\n");
 		exit(1);
 	}
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET; // set to AF_INET to use IPv4
 	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE; // use my IP
 
-	if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return 1;
-	}
-
-	// loop through all the results and make a socket
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-				p->ai_protocol)) == -1) {
-			perror("talker: socket");
-			continue;
+	while (1)
+	{
+	
+		if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
+			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+			return 1;
 		}
 
-		break;
+		// loop through all the results and make a socket
+		for(p = servinfo; p != NULL; p = p->ai_next) {
+			if ((sockfd = socket(p->ai_family, p->ai_socktype,
+					p->ai_protocol)) == -1) {
+				perror("talker: socket");
+				continue;
+			}
+
+			break;
+		}
+
+		if (p == NULL) {
+			fprintf(stderr, "talker: failed to create socket\n");
+			return 2;
+		}
+
+		freeaddrinfo(servinfo);
+
+		printf("Digite uma mensagem pra enviar\n");
+		scanf("%s", buf);
+
+		if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,
+				p->ai_addr, p->ai_addrlen)) == -1) {
+			perror("talker: sendto");
+			exit(1);
+		}
+
+		printf("talker: sent %d bytes to %s\n", numbytes, argv[1]);
+		close(sockfd);
+
+		if ((rv = getaddrinfo(NULL, MYPORT, &hints, &servinfo)) != 0) {
+			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+			return 1;
+		}
+
+		// loop through all the results and bind to the first we can
+		for(p = servinfo; p != NULL; p = p->ai_next) {
+			if ((sockfd_rcv = socket(p->ai_family, p->ai_socktype,
+					p->ai_protocol)) == -1) {
+				perror("listener: socket");
+				continue;
+			}
+
+			if (bind(sockfd_rcv, p->ai_addr, p->ai_addrlen) == -1) {
+				close(sockfd_rcv);
+				perror("listener: bind");
+				continue;
+			}
+
+			break;
+		}
+
+		if (p == NULL) {
+			fprintf(stderr, "listener: failed to bind socket\n");
+			return 2;
+		}
+
+		freeaddrinfo(servinfo);
+		
+		printf("listener: waiting to recvfrom...\n");
+
+		addr_len = sizeof their_addr;
+		if ((numbytes = recvfrom(sockfd_rcv, buf, MAXBUFLEN-1 , 0,
+			(struct sockaddr *)&their_addr, &addr_len)) == -1) {
+			perror("recvfrom");
+			exit(1);
+		}
+
+		printf("listener: got packet from %s\n",
+			inet_ntop(their_addr.ss_family,
+				get_in_addr((struct sockaddr *)&their_addr),
+				s, sizeof s));
+		printf("listener: packet is %d bytes long\n", numbytes);
+		buf[numbytes] = '\0';
+		printf("listener: packet contains \"%s\"\n", buf);
+		close(sockfd_rcv);
 	}
-
-	if (p == NULL) {
-		fprintf(stderr, "talker: failed to create socket\n");
-		return 2;
-	}
-
-	if ((numbytes = sendto(sockfd, argv[2], strlen(argv[2]), 0,
-			 p->ai_addr, p->ai_addrlen)) == -1) {
-		perror("talker: sendto");
-		exit(1);
-	}
-
-	freeaddrinfo(servinfo);
-
-	printf("talker: sent %d bytes to %s\n", numbytes, argv[1]);
-	close(sockfd);
 
 	return 0;
 }

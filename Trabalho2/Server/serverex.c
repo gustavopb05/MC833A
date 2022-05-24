@@ -1,7 +1,3 @@
-/*
-** listener.c -- a datagram sockets "server" demo
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,6 +10,7 @@
 #include <netdb.h>
 
 #define MYPORT "4950"	// the port users will be connecting to
+#define CLIENTPORT "3490"
 
 #define MAXBUFLEN 100
 
@@ -29,8 +26,8 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(void)
 {
-	int sockfd;
-	struct addrinfo hints, *servinfo, *p;
+	int sockfd_rcv, sockfd_snd;
+	struct addrinfo hints, *servinfo, *clientinfo, *p;
 	int rv;
 	int numbytes;
 	struct sockaddr_storage their_addr;
@@ -50,14 +47,14 @@ int main(void)
 
 	// loop through all the results and bind to the first we can
 	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
+		if ((sockfd_rcv = socket(p->ai_family, p->ai_socktype,
 				p->ai_protocol)) == -1) {
 			perror("listener: socket");
 			continue;
 		}
 
-		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
+		if (bind(sockfd_rcv, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd_rcv);
 			perror("listener: bind");
 			continue;
 		}
@@ -72,24 +69,71 @@ int main(void)
 
 	freeaddrinfo(servinfo);
 
-	printf("listener: waiting to recvfrom...\n");
+	while (1)
+	{
+	
+		printf("listener: waiting to recvfrom...\n");
 
-	addr_len = sizeof their_addr;
-	if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
-		(struct sockaddr *)&their_addr, &addr_len)) == -1) {
-		perror("recvfrom");
-		exit(1);
+		addr_len = sizeof their_addr;
+		if ((numbytes = recvfrom(sockfd_rcv, buf, MAXBUFLEN-1 , 0,
+			(struct sockaddr *)&their_addr, &addr_len)) == -1) {
+			perror("recvfrom");
+			exit(1);
+		}
+
+		printf("listener: got packet from %s\n",
+			inet_ntop(their_addr.ss_family,
+				get_in_addr((struct sockaddr *)&their_addr),
+				s, sizeof s));
+		printf("listener: packet is %d bytes long\n", numbytes);
+		buf[numbytes] = '\0';
+		printf("listener: packet contains \"%s\"\n", buf);
+		buf[numbytes] = '+';
+		buf[numbytes+1] = '\0';
+
+
+		// Pega o endereço de onde recebeu a mensagem e cria um socket com um porta para o client
+		if ((rv = getaddrinfo(inet_ntop(their_addr.ss_family,
+				get_in_addr((struct sockaddr *)&their_addr),
+				s, sizeof s), CLIENTPORT, &hints, &clientinfo)) != 0) {
+			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+			return 1;
+		}
+
+		// loop through all the results and make a socket
+		for(p = clientinfo; p != NULL; p = p->ai_next) {
+			if ((sockfd_snd = socket(p->ai_family, p->ai_socktype,
+					p->ai_protocol)) == -1) {
+				perror("talker: socket");
+				continue;
+			}
+
+			break;
+		}
+
+		if (p == NULL) {
+			fprintf(stderr, "talker: failed to create socket\n");
+			return 2;
+		}
+
+		if ((numbytes = sendto(sockfd_snd, buf, strlen(buf), 0,
+				p->ai_addr, p->ai_addrlen)) == -1) {
+			perror("talker: sendto");
+			exit(1);
+		}
+
+		freeaddrinfo(clientinfo);
+
+		printf("talker: sent %d bytes to %s\n", numbytes,inet_ntop(their_addr.ss_family,
+				get_in_addr((struct sockaddr *)&their_addr),
+				s, sizeof s));
+		close(sockfd_snd);
+	
+	
+	
 	}
 
-	printf("listener: got packet from %s\n",
-		inet_ntop(their_addr.ss_family,
-			get_in_addr((struct sockaddr *)&their_addr),
-			s, sizeof s));
-	printf("listener: packet is %d bytes long\n", numbytes);
-	buf[numbytes] = '\0';
-	printf("listener: packet contains \"%s\"\n", buf);
-
-	close(sockfd);
+	close(sockfd_rcv);
 
 	return 0;
 }
