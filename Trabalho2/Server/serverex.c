@@ -153,15 +153,12 @@ struct IpMessage receiveMessage() {
 int main(void)
 {
 	struct IpMessage ip_message;
-	struct IpMessage ip_message_mod;
 	char buf[100];
 	while (1)
 	{
 		ip_message = receiveMessage();
 
-		ip_message_mod.ip = ip_message.ip;
-
-		strcpy(buf,strcat(ip_message.message,"+"));
+		strcat(ip_message.message,"+");
 
 		sendMessage(ip_message.message, ip_message.ip);
 	}
