@@ -12,7 +12,12 @@
 #define MYPORT "4950"	// the port users will be connecting to
 #define CLIENTPORT "3490"
 
-#define MAXBUFLEN 100
+#define MAXBUFLEN 1000
+
+struct IpMessage {
+	char *ip;
+	char *message;
+};
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -24,14 +29,12 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int main(void)
-{
-	int sockfd_rcv, sockfd_snd;
-	struct addrinfo hints, *servinfo, *clientinfo, *p;
+void sendMessage(char *message, char *ip) {
+	int sockfd_snd;
+	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	int numbytes;
 	struct sockaddr_storage their_addr;
-	char buf[MAXBUFLEN];
 	socklen_t addr_len;
 	char s[INET6_ADDRSTRLEN];
 
@@ -40,22 +43,17 @@ int main(void)
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
-	if ((rv = getaddrinfo(NULL, MYPORT, &hints, &servinfo)) != 0) {
+	
+	if ((rv = getaddrinfo(ip, CLIENTPORT, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return 1;
+		return;
 	}
 
-	// loop through all the results and bind to the first we can
+	// loop through all the results and make a socket
 	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd_rcv = socket(p->ai_family, p->ai_socktype,
+		if ((sockfd_snd = socket(p->ai_family, p->ai_socktype,
 				p->ai_protocol)) == -1) {
-			perror("listener: socket");
-			continue;
-		}
-
-		if (bind(sockfd_rcv, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd_rcv);
-			perror("listener: bind");
+			perror("socket");
 			continue;
 		}
 
@@ -63,77 +61,109 @@ int main(void)
 	}
 
 	if (p == NULL) {
-		fprintf(stderr, "listener: failed to bind socket\n");
-		return 2;
+		fprintf(stderr, "failed to create socket\n");
+		return;
 	}
 
 	freeaddrinfo(servinfo);
 
-	while (1)
-	{
-	
-		printf("listener: waiting to recvfrom...\n");
-
-		addr_len = sizeof their_addr;
-		if ((numbytes = recvfrom(sockfd_rcv, buf, MAXBUFLEN-1 , 0,
-			(struct sockaddr *)&their_addr, &addr_len)) == -1) {
-			perror("recvfrom");
-			exit(1);
-		}
-
-		printf("listener: got packet from %s\n",
-			inet_ntop(their_addr.ss_family,
-				get_in_addr((struct sockaddr *)&their_addr),
-				s, sizeof s));
-		printf("listener: packet is %d bytes long\n", numbytes);
-		buf[numbytes] = '\0';
-		printf("listener: packet contains \"%s\"\n", buf);
-		buf[numbytes] = '+';
-		buf[numbytes+1] = '\0';
-
-
-		// Pega o endereço de onde recebeu a mensagem e cria um socket com um porta para o client
-		if ((rv = getaddrinfo(inet_ntop(their_addr.ss_family,
-				get_in_addr((struct sockaddr *)&their_addr),
-				s, sizeof s), CLIENTPORT, &hints, &clientinfo)) != 0) {
-			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-			return 1;
-		}
-
-		// loop through all the results and make a socket
-		for(p = clientinfo; p != NULL; p = p->ai_next) {
-			if ((sockfd_snd = socket(p->ai_family, p->ai_socktype,
-					p->ai_protocol)) == -1) {
-				perror("talker: socket");
-				continue;
-			}
-
-			break;
-		}
-
-		if (p == NULL) {
-			fprintf(stderr, "talker: failed to create socket\n");
-			return 2;
-		}
-
-		if ((numbytes = sendto(sockfd_snd, buf, strlen(buf), 0,
-				p->ai_addr, p->ai_addrlen)) == -1) {
-			perror("talker: sendto");
-			exit(1);
-		}
-
-		freeaddrinfo(clientinfo);
-
-		printf("talker: sent %d bytes to %s\n", numbytes,inet_ntop(their_addr.ss_family,
-				get_in_addr((struct sockaddr *)&their_addr),
-				s, sizeof s));
-		close(sockfd_snd);
-	
-	
-	
+	if ((numbytes = sendto(sockfd_snd, message, strlen(message), 0,
+			p->ai_addr, p->ai_addrlen)) == -1) {
+		perror("sendto");
+		exit(1);
 	}
 
+	printf("sent %d bytes to %s\n", numbytes, ip);
+	close(sockfd_snd);
+	return;
+}
+
+struct IpMessage receiveMessage() {
+	int sockfd_rcv;
+	struct addrinfo hints, *clientinfo, *p;
+	int rv;
+	int numbytes;
+	struct sockaddr_storage their_addr;
+	socklen_t addr_len;
+	char s[INET6_ADDRSTRLEN];
+	char buf[MAXBUFLEN];
+	struct IpMessage ip_message;
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_INET; // set to AF_INET to use IPv4
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE; // use my IP
+
+	if ((rv = getaddrinfo(NULL, MYPORT, &hints, &clientinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		exit(1);
+	}
+
+	// loop through all the results and bind to the first we can
+	for(p = clientinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd_rcv = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			perror("socket");
+			continue;
+		}
+
+		if (bind(sockfd_rcv, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd_rcv);
+			perror("bind");
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "failed to bind socket\n");
+		exit(1);
+	}
+
+	freeaddrinfo(clientinfo);
+	
+	printf("waiting to recvfrom...\n");
+
+	addr_len = sizeof their_addr;
+	if ((numbytes = recvfrom(sockfd_rcv, buf, MAXBUFLEN-1 , 0,
+		(struct sockaddr *)&their_addr, &addr_len)) == -1) {
+		perror("recvfrom");
+		exit(1);
+	}
+
+	char *ip = inet_ntop(their_addr.ss_family,
+						get_in_addr((struct sockaddr *)&their_addr),
+						s, 
+						sizeof s);
+
+	printf("got packet from %s\n", ip);
+	printf("packet is %d bytes long\n", numbytes);
+	buf[numbytes] = '\0';
+	printf("packet contains \"%s\"\n", buf);
 	close(sockfd_rcv);
 
+	ip_message.ip = ip;
+	ip_message.message = buf;
+
+	return ip_message;
+
+}
+
+int main(void)
+{
+	struct IpMessage ip_message;
+	struct IpMessage ip_message_mod;
+	char buf[100];
+	while (1)
+	{
+		ip_message = receiveMessage();
+
+		ip_message_mod.ip = ip_message.ip;
+
+		strcpy(buf,strcat(ip_message.message,"+"));
+
+		sendMessage(ip_message.message, ip_message.ip);
+	}
 	return 0;
 }
