@@ -15,8 +15,8 @@
 #define MAXBUFLEN 1000
 
 struct IpMessage {
-	char *ip;
-	char *message;
+	const char *ip;
+	const char *message;
 };
 
 // get sockaddr, IPv4 or IPv6:
@@ -29,7 +29,7 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-void sendMessage(char *message, char *ip) {
+void sendMessage(const char *message, const char *ip) {
 	int sockfd_snd;
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
@@ -150,6 +150,64 @@ struct IpMessage receiveMessage() {
 
 }
 
+void listAll(const char *ip) {
+
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	int numbytes;
+	char result[300] = "";
+	struct timeval tv2;
+
+	fp = fopen("Movies/movies.txt", "r");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+		strcat(result, line);
+	}
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+
+	sendMessage(result, ip);
+}
+
+void listId(const char *ip){
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	char result[100] = "";
+	struct timeval tv2;
+
+	int id = 0;
+	char idChar[3];
+
+	fp = fopen("Movies/index.txt", "r");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+		id++;
+
+		sprintf(idChar, "%d", id);
+		strcat(result, idChar);
+		strcat(result, " ");
+		strcat(result, line);
+
+	}
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	sendMessage(result, ip);
+}
+
 int main(void)
 {
 	struct IpMessage ip_message;
@@ -158,9 +216,18 @@ int main(void)
 	{
 		ip_message = receiveMessage();
 
-		strcat(ip_message.message,"+");
 
-		sendMessage(ip_message.message, ip_message.ip);
+		if (strcmp(ip_message.message,"listAll")==0) { // Lista todos os filmes
+			listAll(ip_message.ip);
+		}
+		else if (strcmp(ip_message.message,"listId")==0) { // Lista todos os títulos e Id
+			listId(ip_message.ip);
+		}
+		else
+		{
+			sendMessage("Não tem", ip_message.ip);
+		}
+		
 	}
 	return 0;
 }

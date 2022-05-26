@@ -13,7 +13,7 @@
 #define SERVERPORT "4950"	// the port users will be connecting to
 #define MYPORT "3490"
 
-#define MAXBUFLEN 1000
+#define MAXBUFLEN 300
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -133,10 +133,17 @@ void receiveMessage() {
 			s, sizeof s));
 	printf("packet is %d bytes long\n", numbytes);
 	buf[numbytes] = '\0';
-	printf("packet contains \"%s\"\n", buf);
+	printf("packet contains \n\"%s\"\n", buf);
 	close(sockfd_rcv);
 	return;
 
+}
+
+void requestInfo(char *message, char *ip) {
+	
+	sendMessage(message, ip);
+
+	receiveMessage();
 }
 
 int main(int argc, char *argv[])
@@ -153,9 +160,11 @@ int main(int argc, char *argv[])
 		printf("Digite uma mensagem pra enviar\n");
 		scanf("%s", buf);
 
-		sendMessage(buf, argv[1]);
+		if (strcmp(buf,"listAll") == 0 || strcmp(buf,"listId") == 0)
+		{
+			requestInfo(buf, argv[1]);
+		}
 
-		receiveMessage();
 	}
 
 	return 0;
