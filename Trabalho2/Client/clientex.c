@@ -164,6 +164,11 @@ int main(int argc, char *argv[])
 		{
 			requestInfo(buf, argv[1]);
 		}
+		else
+		{
+			requestInfo(buf,argv[1]);
+		}
+		
 
 	}
 
