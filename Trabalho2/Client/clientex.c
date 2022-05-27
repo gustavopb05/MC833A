@@ -133,7 +133,7 @@ void receiveMessage() {
 			s, sizeof s));
 	printf("packet is %d bytes long\n", numbytes);
 	buf[numbytes] = '\0';
-	printf("packet contains \n\"%s\"\n", buf);
+	printf("packet contains:\n%s\n", buf);
 	close(sockfd_rcv);
 	return;
 
@@ -146,9 +146,67 @@ void requestInfo(char *message, char *ip) {
 	receiveMessage();
 }
 
+void requestRegister(char *message, char *ip) {
+	sendMessage(message, ip);
+	
+	char infos[100];
+	char movie[200] = "";
+	int i = 0;
+
+	printf("Digite o título:\n");
+
+	infos[i] = getchar();    /* get the first character */
+	while( infos[i] != '\n' ){
+		infos[++i] = getchar(); /* gets the next character */
+	}
+	infos[i] = '\0';
+	i = 0;
+
+	sendMessage(infos, ip);
+
+	strcat(movie, infos);
+	strcat(movie, "\n");
+	
+	printf("Digite o genero:\n");
+	infos[i] = getchar();    /* get the first character */
+	while( infos[i] != '\n' ){
+		infos[++i] = getchar(); /* gets the next character */
+	}
+	infos[i] = '\0';
+	i = 0;
+
+	strcat(movie, infos);
+	strcat(movie, "\n");
+	
+	printf("Digite o diretor:\n");
+	infos[i] = getchar();    /* get the first character */
+	while( infos[i] != '\n' ){
+		infos[++i] = getchar(); /* gets the next character */
+	}
+	infos[i] = '\0';
+	i = 0;
+
+	strcat(movie, infos);
+	strcat(movie, "\n");
+
+	printf("Digite o ano:\n");
+	infos[i] = getchar();    /* get the first character */
+	while( infos[i] != '\n' ){
+		infos[++i] = getchar(); /* gets the next character */
+	}
+	infos[i] = '\0';
+	i = 0;
+
+	strcat(movie, infos);
+	strcat(movie, "\n\0");
+
+	sendMessage(movie, ip);
+
+	receiveMessage();
+}
+
 int main(int argc, char *argv[])
 {
-	char buf[MAXBUFLEN];
 
 	if (argc != 2) {
 		fprintf(stderr,"usage: client hostname\n");
@@ -157,12 +215,27 @@ int main(int argc, char *argv[])
 
 	while (1)
 	{
+		char buf[MAXBUFLEN];
+		int i = 0;
+
 		printf("Digite uma mensagem pra enviar\n");
-		scanf("%s", buf);
+		buf[i] = getchar();    /* get the first character */
+		while( buf[i] != '\n' ){
+			buf[++i] = getchar(); /* gets the next character */
+		}
+		buf[i] = '\0';
+		i = 0;
 
 		if (strcmp(buf,"listAll") == 0 || strcmp(buf,"listId") == 0)
 		{
 			requestInfo(buf, argv[1]);
+		}
+		else if (strcmp(buf,"cadastrar") == 0)
+		{
+			requestRegister(buf, argv[1]);
+		}
+		else if (strcmp(buf, "exit") == 0){
+			break;
 		}
 		else
 		{

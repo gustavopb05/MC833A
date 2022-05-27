@@ -15,8 +15,8 @@
 #define MAXBUFLEN 1000
 
 struct IpMessage {
-	const char *ip;
-	const char *message;
+	char *ip;
+	char *message;
 };
 
 // get sockaddr, IPv4 or IPv6:
@@ -29,7 +29,7 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-void sendMessage(const char *message, const char *ip) {
+void sendMessage(char *message, char *ip) {
 	int sockfd_snd;
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
@@ -140,7 +140,7 @@ struct IpMessage receiveMessage() {
 	printf("got packet from %s\n", ip);
 	printf("packet is %d bytes long\n", numbytes);
 	buf[numbytes] = '\0';
-	printf("packet contains \"%s\"\n", buf);
+	printf("packet contains: \n%s\n", buf);
 	close(sockfd_rcv);
 
 	ip_message.ip = ip;
@@ -150,7 +150,7 @@ struct IpMessage receiveMessage() {
 
 }
 
-void listAll(const char *ip) {
+void listAll(char *ip) {
 
 	FILE *fp;
 	char *line = NULL;
@@ -176,7 +176,7 @@ void listAll(const char *ip) {
 	sendMessage(result, ip);
 }
 
-void listId(const char *ip){
+void listId(char *ip){
 	FILE *fp;
 	char *line = NULL;
 	size_t len = 0;
@@ -208,6 +208,65 @@ void listId(const char *ip){
 	sendMessage(result, ip);
 }
 
+void registerMovie(char *ip) {
+	int numbytes;
+	struct IpMessage ip_message;
+
+	ip_message = receiveMessage();
+
+	strcat(ip_message.message,"\n");
+	strcat(ip_message.message,"\0");
+
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+
+	fp = fopen("Movies/index.txt", "a");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	fprintf(fp,"%s", ip_message.message); //Titulo no index
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	ip_message = receiveMessage(); // Filme todo
+	
+	fp = fopen("Movies/movies.txt", "a");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	fprintf(fp,"%s", ip_message.message); //Registra o filme
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	
+	fp = fopen("Movies/index.txt", "r");
+	if (fp == NULL)
+		printf("Erro\n");
+
+	int idCadastro = 0;
+	while ((read = getline(&line, &len, fp)) != -1) { // Pega o número do cadastro
+		idCadastro++;
+	}
+
+	fclose(fp);
+	if (line)
+		free(line);
+
+	char idChar[3];
+	sprintf(idChar, "%d", idCadastro); //Passa int pra string
+
+	char result[40] = "\nCadastrado, id é: ";
+	strcat(result,idChar);
+
+	sendMessage(result, ip);
+}
+
 int main(void)
 {
 	struct IpMessage ip_message;
@@ -217,11 +276,14 @@ int main(void)
 		ip_message = receiveMessage();
 
 
-		if (strcmp(ip_message.message,"listAll")==0) { // Lista todos os filmes
+		if (strcmp(ip_message.message,"listAll") == 0) { // Lista todos os filmes
 			listAll(ip_message.ip);
 		}
-		else if (strcmp(ip_message.message,"listId")==0) { // Lista todos os títulos e Id
+		else if (strcmp(ip_message.message,"listId") == 0) { // Lista todos os títulos e Id
 			listId(ip_message.ip);
+		}
+		else if (strcmp(ip_message.message, "cadastrar") == 0) {
+			registerMovie(ip_message.ip);
 		}
 		else
 		{
