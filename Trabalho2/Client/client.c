@@ -1,24 +1,19 @@
-/*
-** client.c -- a stream socket client demo
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <netdb.h>
 #include <sys/types.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <sys/time.h>
 
-#include <arpa/inet.h>
+#define SERVERPORT "4950"	// the port users will be connecting to
+#define MYPORT "3490"
 
-#define PORT "3490" // the port client will be connecting to 
-
-#define MAXDATASIZE 1000 // max number of bytes we can get at once 
-#define MAXBUFLEN 100
+#define MAXBUFLEN 300
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -30,53 +25,133 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-
-//#########################################
-// Funções que trocam mensagem com o servidor
-
-void requestInfo(int sockfd,char *send_message, struct addrinfo *p) {
-
+void sendMessage(char *message, char *ip) {
+	int sockfd_snd;
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
 	int numbytes;
-	char buf[MAXDATASIZE];
-	struct timeval tv1, tv2;
 	struct sockaddr_storage their_addr;
 	socklen_t addr_len;
+	char s[INET6_ADDRSTRLEN];
 
-	gettimeofday(&tv1, NULL);
-	if ((numbytes = sendto(sockfd, send_message, strlen(send_message), 0,
-			 p->ai_addr, p->ai_addrlen)) == -1) {
-		perror("talker: sendto");
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_INET; // set to AF_INET to use IPv4
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE; // use my IP
+
+	
+	if ((rv = getaddrinfo(ip, SERVERPORT, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return;
+	}
+
+	// loop through all the results and make a socket
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd_snd = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			perror("socket");
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "failed to create socket\n");
+		return;
+	}
+
+	freeaddrinfo(servinfo);
+
+	if ((numbytes = sendto(sockfd_snd, message, strlen(message), 0,
+			p->ai_addr, p->ai_addrlen)) == -1) {
+		perror("sendto");
 		exit(1);
 	}
 
-	// if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-	// 	perror("recv");
-	// 	exit(1);
-	// }
+	printf("sent %d bytes to %s\n", numbytes, ip);
+	close(sockfd_snd);
+	return;
+}
+
+void receiveMessage() {
+	int sockfd_rcv;
+	struct addrinfo hints, *clientinfo, *p;
+	int rv;
+	int numbytes;
+	struct sockaddr_storage their_addr;
+	socklen_t addr_len;
+	char s[INET6_ADDRSTRLEN];
+	char buf[MAXBUFLEN];
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_INET; // set to AF_INET to use IPv4
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE; // use my IP
+
+	if ((rv = getaddrinfo(NULL, MYPORT, &hints, &clientinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return;
+	}
+
+	// loop through all the results and bind to the first we can
+	for(p = clientinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd_rcv = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			perror("socket");
+			continue;
+		}
+
+		if (bind(sockfd_rcv, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd_rcv);
+			perror("bind");
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "failed to bind socket\n");
+		return;
+	}
+
+	freeaddrinfo(clientinfo);
+	
+	printf("waiting to recvfrom...\n");
 
 	addr_len = sizeof their_addr;
-	if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
+	if ((numbytes = recvfrom(sockfd_rcv, buf, MAXBUFLEN-1 , 0,
 		(struct sockaddr *)&their_addr, &addr_len)) == -1) {
 		perror("recvfrom");
 		exit(1);
 	}
-	gettimeofday(&tv2, NULL);
-	buf[numbytes] = '\0';
 
-	printf("%s\n",buf);
-	printf("TT = %06ld\n", tv2.tv_usec - tv1.tv_usec);
+	printf("got packet from %s\n",
+		inet_ntop(their_addr.ss_family,
+			get_in_addr((struct sockaddr *)&their_addr),
+			s, sizeof s));
+	printf("packet is %d bytes long\n", numbytes);
+	buf[numbytes] = '\0';
+	printf("packet contains:\n%s\n", buf);
+	close(sockfd_rcv);
+	return;
+
 }
 
-void requestRegister(int sockfd, char *send_message) {
+void requestInfo(char *message, char *ip) {
+	
+	sendMessage(message, ip);
 
-	int numbytes, i = 0;
-	char buf[MAXDATASIZE];
-	char movie[1000] = "";
+	receiveMessage();
+}
 
-	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
-		perror("send");
-
+void requestRegister(char *message, char *ip) {
+	sendMessage(message, ip);
+	
 	char infos[100];
+	char movie[200] = "";
+	int i = 0;
 
 	printf("Digite o título:\n");
 
@@ -87,8 +162,7 @@ void requestRegister(int sockfd, char *send_message) {
 	infos[i] = '\0';
 	i = 0;
 
-	if (send(sockfd, infos, strlen(infos), 0) == -1)
-		perror("send");
+	sendMessage(infos, ip);
 
 	strcat(movie, infos);
 	strcat(movie, "\n");
@@ -126,219 +200,136 @@ void requestRegister(int sockfd, char *send_message) {
 	strcat(movie, infos);
 	strcat(movie, "\n\0");
 
-	if (send(sockfd, movie, strlen(movie), 0) == -1)
-		perror("send");
-	
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-		perror("recv");
-		exit(1);
-	}
+	sendMessage(movie, ip);
 
-	buf[numbytes] = '\0';
+	receiveMessage();
 }
 
-void requestMovieId(int sockfd, char *send_message) {
-	int numbytes, i = 0;
-	char buf[MAXDATASIZE];
-	char idChar[3] = "";
+void requestMovieId(char *buf, char *ip){
+	sendMessage(buf, ip);
 
-	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
-		perror("send");
+	char infos[100];
+	int i = 0;
 
-	printf("Digite o id:\n");
+	printf("Digite o id do filme:\n");
 
-	idChar[i] = getchar();    /* get the first character */
-	while( idChar[i] != '\n' ){
-		idChar[++i] = getchar(); /* gets the next character */
+	infos[i] = getchar();    /* get the first character */
+	while( infos[i] != '\n' ){
+		infos[++i] = getchar(); /* gets the next character */
 	}
-	idChar[i] = '\0';
+	infos[i] = '\0';
 	i = 0;
 
-	if (send(sockfd, idChar, strlen(idChar), 0) == -1)
-		perror("send");
+	sendMessage(infos, ip);
 
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-		perror("recv");
-		exit(1);
-	}
-
-	buf[numbytes] = '\0';
-	printf("%s\n",buf);
+	receiveMessage();
 }
 
-void requestAcrescentaGen(int sockfd, char *send_message){
-	int numbytes, i = 0;
-	char buf[MAXDATASIZE];
-	char sChar[100] = "";
+void requestAcrescentaGen(char *message, char *ip){
+	sendMessage(message, ip);
 
-	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
-		perror("send");
+	char infos[100];
+	int i = 0;
 
-	printf("Digite o Título:\n");
+	printf("Digite o título:\n");
 
-	sChar[i] = getchar();    /* get the first character */
-	while( sChar[i] != '\n' ){
-		sChar[++i] = getchar(); /* gets the next character */
+	infos[i] = getchar();    /* get the first character */
+	while( infos[i] != '\n' ){
+		infos[++i] = getchar(); /* gets the next character */
 	}
-	sChar[i] = '\0';
+	infos[i] = '\0';
 	i = 0;
 
-	if (send(sockfd, sChar, strlen(sChar), 0) == -1)
-		perror("send");
+	sendMessage(infos, ip);
 
-	printf("Digite o Gênero:\n");
+	printf("Digite o novo genero:\n");
 
-	sChar[i] = getchar();    /* get the first character */
-	while( sChar[i] != '\n' ){
-		sChar[++i] = getchar(); /* gets the next character */
+	infos[i] = getchar();    /* get the first character */
+	while( infos[i] != '\n' ){
+		infos[++i] = getchar(); /* gets the next character */
 	}
-	sChar[i] = '\0';
+	infos[i] = '\0';
 	i = 0;
 
-	if (send(sockfd, sChar, strlen(sChar), 0) == -1)
-		perror("send");
+	sendMessage(infos, ip);
 
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-		perror("recv");
-		exit(1);
-	}
-
-	buf[numbytes] = '\0';
-	printf("%s\n",buf);
+	receiveMessage();
 }
 
-void requestListarGenAll(int sockfd, char *send_message) {
-	int numbytes, i = 0;
-	char buf[MAXDATASIZE];
-	char gChar[3] = "";
+void requestListarGen(char *message, char *ip){
+	sendMessage(message, ip);
 
-	if (send(sockfd, send_message, strlen(send_message), 0) == -1)
-		perror("send");
+	char infos[100];
+	int i = 0;
 
 	printf("Digite o genero:\n");
 
-	gChar[i] = getchar();    /* get the first character */
-	while( gChar[i] != '\n' ){
-		gChar[++i] = getchar(); /* gets the next character */
+	infos[i] = getchar();    /* get the first character */
+	while( infos[i] != '\n' ){
+		infos[++i] = getchar(); /* gets the next character */
 	}
-	gChar[i] = '\0';
+	infos[i] = '\0';
 	i = 0;
 
-	printf("\n");
+	sendMessage(infos, ip);
 
-	if (send(sockfd, gChar, strlen(gChar), 0) == -1)
-		perror("send");
-
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-		perror("recv");
-		exit(1);
-	}
-
-	buf[numbytes] = '\0';
-	printf("%s\n",buf);
+	receiveMessage();
 }
 
-//##########################################
-// Função que abre a conexao e escolhe qual outra função pra enviar a mensagem
-
-int sendServer(int argc, char *argv[], char *send_message) {
-	int sockfd;
-	struct addrinfo hints, *servinfo, *p;
-	int rv;
-	int numbytes;
-
-	if (argc != 2) {
-		fprintf(stderr,"usage: talker hostname\n");
-		exit(1);
-	}
-
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_INET; // set to AF_INET to use IPv4
-	hints.ai_socktype = SOCK_DGRAM;
-
-	if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return 1;
-	}
-
-	// loop through all the results and make a socket
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-				p->ai_protocol)) == -1) {
-			perror("talker: socket");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL) {
-		fprintf(stderr, "talker: failed to create socket\n");
-		return 2;
-	}
-
-	//###################################
-	// Escolhe a função baseado na entrada
-
-	if (strcmp(send_message,"listAll") == 0 || strcmp(send_message,"listId") == 0)
-	{
-		requestInfo(sockfd, send_message, p);
-	}
-	else if (strcmp(send_message, "movieId") == 0 || strcmp(send_message, "removeId") == 0)
-	{
-		requestMovieId(sockfd, send_message);	
-	}
-	else if(strcmp(send_message, "acrescentaGen") == 0)
-	{
-		requestAcrescentaGen(sockfd, send_message);
-	}
-	else if(strcmp(send_message, "listarGenAll") == 0)
-	{
-		requestListarGenAll(sockfd, send_message);
-	}
-	else if (strcmp(send_message,"cadastrar") == 0)
-	{
-		requestRegister(sockfd, send_message);
-	}
-	else
-	{
-		requestInfo(sockfd, send_message, p);
-	}
-	
-
-	freeaddrinfo(servinfo);
-
-	close(sockfd);
-	
-	return 0;
-}
 
 
 int main(int argc, char *argv[])
 {
 
-	char message[MAXDATASIZE];
-	int ret, i =0;
+	if (argc != 2) {
+		fprintf(stderr,"usage: client hostname\n");
+		exit(1);
+	}
 
 	while (1)
 	{
-		printf("\nAções disponíveis:\ncadastrar - Cadastra um novo filme\nlistAll - Lista todas informações de todos os filmes\nlistId - Lista todos os títulos e seu id\nmovieId - Infos de um filme dado seu id\nremoveId - Remove um filme pelo id\nacrescentaGen - Acescenta um gênero a um filme\nlistarGenAll - Lista todas as informações dos filmes de um gênero\n\nDigite uma ação:\n\n");
+		char buf[MAXBUFLEN];
+		int i = 0;
 
-		message[i] = getchar();    /* get the first character */
-		while( message[i] != '\n' ){
-			message[++i] = getchar(); /* gets the next character */
+		printf("Digite uma mensagem pra enviar\n");
+		buf[i] = getchar();    /* get the first character */
+		while( buf[i] != '\n' ){
+			buf[++i] = getchar(); /* gets the next character */
 		}
-		message[i] = '\0';
+		buf[i] = '\0';
 		i = 0;
 
-		printf("\n");
-	
-		if(strcmp(message,"exit") == 0) {
+		if (strcmp(buf,"listAll") == 0 || strcmp(buf,"listId") == 0)
+		{
+			requestInfo(buf, argv[1]);
+		}
+		else if (strcmp(buf,"cadastrar") == 0)
+		{
+			requestRegister(buf, argv[1]);
+		}
+		else if (strcmp(buf, "movieId") == 0 || strcmp(buf, "removeId") == 0)
+		{
+			requestMovieId(buf, argv[1]);	
+		}
+		else if (strcmp(buf,"acrescentaGen") == 0)
+		{
+			requestAcrescentaGen(buf, argv[1]);
+		}
+		else if (strcmp(buf,"listarGen") == 0)
+		{
+			requestListarGen(buf, argv[1]);
+		}
+
+		else if (strcmp(buf, "exit") == 0){
 			break;
 		}
-		else {
-			ret = sendServer(argc, argv, message);
+		else
+		{
+			requestInfo(buf,argv[1]);
 		}
+		
+
 	}
-	return ret;
+
+	return 0;
 }
