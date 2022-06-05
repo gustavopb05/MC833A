@@ -15,8 +15,8 @@
 #define MAXBUFLEN 300
 
 struct IpMessage {
-	char *ip;
-	char *message;
+	char ip[20];
+	char message[MAXBUFLEN];
 };
 
 // get sockaddr, IPv4 or IPv6:
@@ -143,8 +143,9 @@ struct IpMessage receiveMessage() {
 	printf("packet contains: \n%s\n", buf);
 	close(sockfd_rcv);
 
-	ip_message.ip = ip;
-	ip_message.message = buf;
+
+	strcpy(ip_message.ip, ip);
+	strcpy(ip_message.message, buf);
 
 	return ip_message;
 
@@ -158,7 +159,6 @@ void listAll(char *ip) {
 	ssize_t read;
 	int numbytes;
 	char result[300] = "";
-	struct timeval tv2;
 
 	fp = fopen("Movies/movies.txt", "r");
 	if (fp == NULL)
@@ -182,7 +182,6 @@ void listId(char *ip){
 	size_t len = 0;
 	ssize_t read;
 	char result[100] = "";
-	struct timeval tv2;
 
 	int id = 0;
 	char idChar[3];
@@ -378,6 +377,9 @@ void acrescentaGen(char *ip) {
 
 	struct IpMessage info = receiveMessage();
 	strcpy(title, info.message);
+	int ind = strlen(title);
+	title[ind] = '\n';
+	title[ind+1] = '\0';
 	
 	FILE *fp;
 	char *line = NULL;
@@ -395,7 +397,7 @@ void acrescentaGen(char *ip) {
 	while ((read = getline(&line, &len, fp)) != -1) {
 		id++;
 
-		if (strcmp(title,line) == 0) {
+		if (strcmp(line,title) == 0) {
 			found = 1;
 			break;
 		}
@@ -528,17 +530,16 @@ int main(void)
 		else if (strcmp(ip_message.message, "cadastrar") == 0) {
 			registerMovie(ip_message.ip);
 		}
-
-		else if (strcmp(buf, "movieId") == 0) { // Lista infomações de um filme por Id
+		else if (strcmp(ip_message.message, "movieId") == 0) { // Lista infomações de um filme por Id
 			movieId(ip_message.ip);
 		}
-		else if (strcmp(buf, "removeId") == 0) { // Remove um filme
+		else if (strcmp(ip_message.message, "removeId") == 0) { // Remove um filme
 			removeId(ip_message.ip);
 		}
-		else if (strcmp(buf, "acrescentaGen") == 0) { // Acrescentar um novo gênero em um filme
+		else if (strcmp(ip_message.message, "acrescentaGen") == 0) { // Acrescentar um novo gênero em um filme
 			acrescentaGen(ip_message.ip);
 		}
-		else if (strcmp(buf, "listarGenAll") == 0) { // Listar informações (título, diretor(a) e ano) de todos os filmes de um determinado gênero
+		else if (strcmp(ip_message.message, "listarGenAll") == 0) { // Listar informações (título, diretor(a) e ano) de todos os filmes de um determinado gênero
 			listarGenAll(ip_message.ip);
 		}
 

@@ -69,7 +69,7 @@ void sendMessage(char *message, char *ip) {
 		exit(1);
 	}
 
-	printf("sent %d bytes to %s\n", numbytes, ip);
+	printf("sent %d bytes to %s\n\n", numbytes, ip);
 	close(sockfd_snd);
 	return;
 }
@@ -133,7 +133,7 @@ void receiveMessage() {
 			s, sizeof s));
 	printf("packet is %d bytes long\n", numbytes);
 	buf[numbytes] = '\0';
-	printf("packet contains:\n%s\n", buf);
+	printf("packet contains:\n\n%s\n", buf);
 	close(sockfd_rcv);
 	return;
 
@@ -178,7 +178,7 @@ void requestRegister(char *message, char *ip) {
 	strcat(movie, infos);
 	strcat(movie, "\n");
 	
-	printf("Digite o diretor:\n");
+	printf("\nDigite o diretor:\n");
 	infos[i] = getchar();    /* get the first character */
 	while( infos[i] != '\n' ){
 		infos[++i] = getchar(); /* gets the next character */
@@ -189,7 +189,7 @@ void requestRegister(char *message, char *ip) {
 	strcat(movie, infos);
 	strcat(movie, "\n");
 
-	printf("Digite o ano:\n");
+	printf("\nDigite o ano:\n");
 	infos[i] = getchar();    /* get the first character */
 	while( infos[i] != '\n' ){
 		infos[++i] = getchar(); /* gets the next character */
@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
 		char buf[MAXBUFLEN];
 		int i = 0;
 
-		printf("Digite uma mensagem pra enviar\n");
+		printf("\nAções disponíveis:\ncadastrar - Cadastra um novo filme\nlistAll - Lista todas informações de todos os filmes\nlistId - Lista todos os títulos e seu id\nmovieId - Infos de um filme dado seu id\nremoveId - Remove um filme pelo id\nacrescentaGen - Acescenta um gênero a um filme\nlistarGenAll - Lista todas as informações dos filmes de um gênero\n\nDigite uma ação:\n\n");
 		buf[i] = getchar();    /* get the first character */
 		while( buf[i] != '\n' ){
 			buf[++i] = getchar(); /* gets the next character */
@@ -315,7 +315,7 @@ int main(int argc, char *argv[])
 		{
 			requestAcrescentaGen(buf, argv[1]);
 		}
-		else if (strcmp(buf,"listarGen") == 0)
+		else if (strcmp(buf,"listarGenAll") == 0)
 		{
 			requestListarGen(buf, argv[1]);
 		}

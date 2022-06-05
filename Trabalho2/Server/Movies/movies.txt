@@ -2,15 +2,11 @@ Senhor dos Aneis
 Aventura, Ação
 Peter Jackson
 2001
-The Matrix
-Scifi, Ação
-As Wachowski
-1999
-De volta para o futuro
-Scifi
-Robert Zemeski
-1985
 Dune
-Scifi
+Scifi, Aventura, Acao
 Denis Villeneuve
 2021
+De Volta Para o Futuro
+Scifi, Acao
+Algum diretor
+1985
