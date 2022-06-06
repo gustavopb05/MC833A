@@ -15,6 +15,8 @@
 
 #define MAXBUFLEN 300
 
+struct timeval tv1, tv2;
+
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -63,6 +65,7 @@ void sendMessage(char *message, char *ip) {
 
 	freeaddrinfo(servinfo);
 
+	gettimeofday(&tv1, NULL);
 	if ((numbytes = sendto(sockfd_snd, message, strlen(message), 0,
 			p->ai_addr, p->ai_addrlen)) == -1) {
 		perror("sendto");
@@ -126,6 +129,7 @@ void receiveMessage() {
 		perror("recvfrom");
 		exit(1);
 	}
+	gettimeofday(&tv2, NULL);
 
 	printf("got packet from %s\n",
 		inet_ntop(their_addr.ss_family,
@@ -144,6 +148,7 @@ void requestInfo(char *message, char *ip) {
 	sendMessage(message, ip);
 
 	receiveMessage();
+	printf("TT = %06ld\n", tv2.tv_usec - tv1.tv_usec);
 }
 
 void requestRegister(char *message, char *ip) {

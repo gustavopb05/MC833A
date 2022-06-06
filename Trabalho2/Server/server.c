@@ -8,11 +8,15 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/time.h>
 
 #define MYPORT "4950"	// the port users will be connecting to
 #define CLIENTPORT "3490"
 
 #define MAXBUFLEN 300
+
+struct timeval tv1;
+struct timeval tv2;
 
 struct IpMessage {
 	char ip[20];
@@ -67,6 +71,7 @@ void sendMessage(char *message, char *ip) {
 
 	freeaddrinfo(servinfo);
 
+	gettimeofday(&tv2, NULL);
 	if ((numbytes = sendto(sockfd_snd, message, strlen(message), 0,
 			p->ai_addr, p->ai_addrlen)) == -1) {
 		perror("sendto");
@@ -131,6 +136,8 @@ struct IpMessage receiveMessage() {
 		perror("recvfrom");
 		exit(1);
 	}
+	gettimeofday(&tv1, NULL);
+
 
 	char *ip = inet_ntop(their_addr.ss_family,
 						get_in_addr((struct sockaddr *)&their_addr),
@@ -174,6 +181,7 @@ void listAll(char *ip) {
 
 
 	sendMessage(result, ip);
+	printf("TS = %06ld\n", tv2.tv_usec - tv1.tv_usec);
 }
 
 void listId(char *ip){
@@ -205,6 +213,7 @@ void listId(char *ip){
 		free(line);
 
 	sendMessage(result, ip);
+	printf("TS = %06ld\n", tv2.tv_usec - tv1.tv_usec);
 }
 
 void registerMovie(char *ip) {
